@@ -1,4 +1,4 @@
-const CACHE = 'htb-rammpfahl-v35';
+const CACHE = 'htb-rammpfahl-v200';
 const ASSETS = [
   './',
   './index.html',
@@ -8,12 +8,13 @@ const ASSETS = [
   './icon.svg',
   './logo.png',
   './arial.ttf',
+  './ARIALBD.TTF',
   './launchericon-192x192.png',
   './launchericon-512x512.png'
 ];
 
 self.addEventListener('install', (e) => {
-  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
+  e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS).catch(() => {})));
   self.skipWaiting();
 });
 
@@ -31,7 +32,7 @@ self.addEventListener('fetch', (e) => {
     fetch(e.request)
       .then(res => {
         const clone = res.clone();
-        caches.open(CACHE).then(cache => cache.put(e.request, clone));
+        caches.open(CACHE).then(c => c.put(e.request, clone));
         return res;
       })
       .catch(() => caches.match(e.request))
