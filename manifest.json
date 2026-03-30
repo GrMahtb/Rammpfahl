@@ -1,0 +1,17 @@
+{
+  "name": "HTB Rammpfahl-Protokoll",
+  "short_name": "HTB Rammpfahl",
+  "description": "Rammpfahl-Protokoll, Bemessung und Variantenvergleich für HTB.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#111111",
+  "theme_color": "#111111",
+  "orientation": "portrait",
+  "icons": [
+    { "src": "launchericon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "launchericon-192x192.png", "sizes": "192x192", "type": "image/png", "purpose": "maskable" },
+    { "src": "launchericon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "launchericon-512x512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ]
+}
