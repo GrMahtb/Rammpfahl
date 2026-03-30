@@ -303,30 +303,10 @@ function initTimerControls() {
 }
 
 /* ===================== PDF EXPORT (Layout wie Vorlage) ===================== */
-function exportPDF_likeTemplate() {
-  // Layout/Bezeichnungen wie im Protokoll-PDF [9]
-  const meta = collectFormState().meta;
-
-  const pfahltypText = (() => {
-    // im Select steht value (intern) – wir nehmen Anzeige-Text
-    const sel = $('inp-pfahltyp');
-    const txt = sel?.options?.[sel.selectedIndex]?.text || '';
-    return txt || meta.pfahltyp || '';
-  })();
-
-  const bodenartText = (meta.bodenart === 'nichtbindig') ? 'nicht bindig' : 'bindig';
-  const schuhText = `ø${Number(meta.schuh || 220)}mm`;
-
-  const ed = Number(meta.ed || 0);
-  const includeK = state.includeKlammer;
-
-  // Tabellenzeilen + Summen
-  let sumTime = 0;
-  let sumRd = 0;
-
   let rowsHtml = '';
   DEPTHS.forEach((d, i) => {
     const t = Number(timeInputs[i]?.value || 0);
+    const note = noteInputs[i]?.value || ''; // NEU
     if (t > 0) sumTime += t;
 
     const rd = t > 0 ? rdPerMeter(t, meta.bodenart, Number(meta.schuh || 220), includeK) : 0;
@@ -337,6 +317,7 @@ function exportPDF_likeTemplate() {
         <td class="c1">${depthLabel(d)}</td>
         <td class="c2">${t > 0 ? t : ''}</td>
         <td class="c3">${t > 0 ? fmtComma(rd, 2) : '0,00'}</td>
+        <td class="c4">${note}</td>
       </tr>
     `;
   });
@@ -365,9 +346,10 @@ function exportPDF_likeTemplate() {
   .subtle { font-weight: 700; }
   .protoHead th { font-weight: 900; text-align: left; }
   .proto td { height: 18px; }
-  .c1 { width: 34%; }
-  .c2 { width: 33%; }
-  .c3 { width: 33%; }
+  .c1 { width: 25%; }
+  .c2 { width: 20%; }
+  .c3 { width: 20%; }
+  .c4 { width: 35%; }
   .footerRow td { font-weight: 700; }
   .sign td { height: 34px; }
   .resultCell { font-weight: 900; text-align: left; }
@@ -406,17 +388,20 @@ function exportPDF_likeTemplate() {
             <th class="c1">Eindring- tiefe[m]</th>
             <th class="c2">Zeit [sec]</th>
             <th class="c3">Rd&nbsp;&nbsp;&nbsp;&nbsp;[kN]</th>
+            <th class="c4">Anmerkung</th>
           </tr>
           ${rowsHtml}
           <tr class="footerRow">
             <td>Gesamtzeit:</td>
             <td>${sumTime}</td>
             <td>${meta.ed ? fmtComma(Number(meta.ed), 2) : ''}</td>
+            <td></td>
           </tr>
           <tr class="footerRow">
             <td>Σ Pfahlwiderstand Rd</td>
             <td>${fmtComma(sumRd, 2)}</td>
             <td class="resultCell">${ok ? 'Rd ≥ Ed' : 'Rd < Ed'}</td>
+            <td></td>
           </tr>
         </table>
       </td>
@@ -434,8 +419,6 @@ function exportPDF_likeTemplate() {
 </div>
 <script>setTimeout(()=>window.print(), 250);<\/script>
 </body></html>`);
-  w.document.close();
-}
 
 /* ===================== EVENTS (Meta) ===================== */
 function hookMetaAutosave() {
