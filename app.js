@@ -577,8 +577,8 @@ async function exportPdfDownload(optionalSnap = null) {
   // Rahmen
   page.drawRectangle({ x: x0, y: y0, width: W, height: H, borderColor: black, borderWidth: 1.5 });
 
-  // Kopfband grau + Titel (gewünscht)
-  const headerH = mm(10);
+  // ========= Kopfzeile höher + fett =========
+  const headerH = mm(14); // höher als vorher
   page.drawRectangle({
     x: x0, y: y0 + H - headerH, width: W, height: headerH,
     color: rgb(0.88, 0.88, 0.88), borderColor: black, borderWidth: 1
@@ -595,11 +595,11 @@ async function exportPdfDownload(optionalSnap = null) {
     });
   }
 
-  // Kopfzeile Text: "Rammpfahl-Protokoll"
+  // Titel wie gewünscht (fett)
   page.drawText('Rammpfahl-Protokoll', {
     x: x0 + mm(33),
-    y: y0 + H - headerH + mm(2.6),
-    size: 12,
+    y: y0 + H - headerH + mm(4.2),
+    size: 13,
     font: fontBold,
     color: black
   });
@@ -607,10 +607,14 @@ async function exportPdfDownload(optionalSnap = null) {
   const drawHLine = (y, thick = 1) =>
     page.drawLine({ start: { x: x0, y }, end: { x: x0 + W, y }, thickness: thick, color: black });
 
-  // Meta-Block (2 Spalten)
+  // ========= Meta-Block =========
   const rowH = mm(8);
   let cy = y0 + H - headerH - rowH;
   const midX = x0 + W * 0.5;
+
+  // Value-Start weiter rechts -> mehr Abstand nach ":" (insb. Bemessungslast)
+  const LEFT_VAL_X  = x0 + mm(32);
+  const RIGHT_VAL_X = midX + mm(62); // vorher ~45mm, jetzt deutlich mehr Abstand
 
   function metaRow(l1, v1, l2, v2) {
     drawHLine(cy, 1);
@@ -618,36 +622,34 @@ async function exportPdfDownload(optionalSnap = null) {
 
     page.drawText(l1, { x: x0 + mm(2), y: cy + mm(2.2), size: 10, font: fontBold, color: black });
 
-    // linkes Value-Feld: fit in linke Hälfte
-    const leftValX = x0 + mm(32);
-    const leftMaxW = (midX - mm(2)) - leftValX;
-    drawTextFit(page, String(v1 || ''), leftValX, cy + mm(2.2), leftMaxW, fontReg, 10, black);
+    const leftMaxW = (midX - mm(2)) - LEFT_VAL_X;
+    drawTextFit(page, String(v1 || ''), LEFT_VAL_X, cy + mm(2.2), leftMaxW, fontReg, 10, black);
 
     page.drawText(l2, { x: midX + mm(2), y: cy + mm(2.2), size: 10, font: fontBold, color: black });
 
-    // rechtes Value-Feld: fit in rechte Hälfte
-    const rightValX = midX + mm(45);
-    const rightMaxW = (x0 + W - mm(2)) - rightValX;
-    drawTextFit(page, String(v2 || ''), rightValX, cy + mm(2.2), rightMaxW, fontReg, 10, black);
+    const rightMaxW = (x0 + W - mm(2)) - RIGHT_VAL_X;
+    drawTextFit(page, String(v2 || ''), RIGHT_VAL_X, cy + mm(2.2), rightMaxW, fontReg, 10, black);
 
     cy -= rowH;
   }
 
   drawHLine(y0 + H - headerH, 1);
 
-  // Datum: TT.MM.JJJJ (gewünscht)
+  // Datum: TT.MM.JJJJ
   const dateDE = formatDateDE_TTMMJJJJ(meta.datum || '');
   metaRow('Datum:', dateDE, 'Kostenstelle:', meta.kostenstelle);
   metaRow('Projekt:', meta.projekt, 'Auftraggeber:', meta.auftraggeber);
   metaRow('Trägergerät:', meta.traeger || 'SK 270', 'Pfahlnummer:', meta.pfahlNr);
+
+  // Hier wichtig: Label exakt mit " :"
   metaRow('Hyd-hammer:', meta.hammer || 'Wimmer WH26', 'Pfahl-Bemessungslast [kN] :', meta.ed ? fmtComma(Number(meta.ed), 2) : '');
 
-  // Pfahltyp + Ø in einer Zelle (gewünscht): "118×7,5mm Ø220mm"
+  // Pfahltyp + Ø direkt nebeneinander (wie du willst): 118×7,5mm Ø220mm
   const pfahlPretty = String(meta.pfahltyp || '').replace(/x/gi, '×');
   const pfahlMitD = `${pfahlPretty} Ø${Number(meta.schuh || 220)}mm`;
   metaRow('Pfahltyp:', pfahlMitD, 'Bodenart:', meta.bodenart || '');
 
-  // ---------------- Tabelle + Diagramm ----------------
+  // ========= Tabelle + Diagramm =========
   const tableTop = cy + rowH;
   const tableBottom = y0 + mm(28);
   const tH = tableTop - tableBottom;
@@ -656,12 +658,13 @@ async function exportPdfDownload(optionalSnap = null) {
   const rightW = W - leftW;
   const th = mm(7);
 
-  // Header-Hintergründe
+  // Header backgrounds
   page.drawRectangle({ x: x0, y: tableTop - th, width: leftW, height: th, color: rgb(0.93,0.93,0.93), borderColor: black, borderWidth: 1 });
   page.drawRectangle({ x: x0 + leftW, y: tableTop - th, width: rightW, height: th, color: rgb(0.93,0.93,0.93), borderColor: black, borderWidth: 1 });
 
-  // Spalten links
-  const c1 = leftW * 0.23;
+  // ======= Spaltenbreiten anpassen =======
+  // Eindringtiefe breiter + damit auch Σ Pfahlwiderstand Platz hat
+  const c1 = leftW * 0.30; // war 0.23 -> breiter
   const c2 = leftW * 0.16;
   const c3 = leftW * 0.16;
   const xC1 = x0 + c1;
@@ -672,30 +675,17 @@ async function exportPdfDownload(optionalSnap = null) {
     page.drawLine({ start: { x: xx, y: tableBottom }, end: { x: xx, y: tableTop }, thickness: 1, color: black });
   });
 
-  // Trennlinie Tabelle/Diagramm (wie Vorlage)
+  // Separator table/chart
   const chartX0 = x0 + leftW;
   page.drawLine({ start: { x: chartX0, y: tableBottom }, end: { x: chartX0, y: tableTop }, thickness: 1, color: black });
 
-  // Tabellen-Header: innerhalb der Zelle (kein Überlauf) [11]
-  // Statt "Eindring-\ntiefe[m]" -> "Eindringtiefe [m]" (passt besser)
-  page.drawText('Eindringtiefe [m]', { x: x0 + mm(1.5), y: tableTop - th + mm(2.2), size: 8.8, font: fontBold, color: black });
-  page.drawText('Zeit [sec]',       { x: xC1 + mm(1.5), y: tableTop - th + mm(2.2), size: 9,   font: fontBold, color: black });
-  page.drawText('Rd [kN]',          { x: xC2 + mm(1.5), y: tableTop - th + mm(2.2), size: 9,   font: fontBold, color: black });
-  page.drawText('Anmerkung',        { x: xC3 + mm(1.5), y: tableTop - th + mm(2.2), size: 9,   font: fontBold, color: black });
+  // Header texts (fett)
+  page.drawText('Eindringtiefe [m]', { x: x0 + mm(1.5), y: tableTop - th + mm(2.2), size: 9, font: fontBold, color: black });
+  page.drawText('Zeit [sec]',       { x: xC1 + mm(1.5), y: tableTop - th + mm(2.2), size: 9, font: fontBold, color: black });
+  page.drawText('Rd [kN]',          { x: xC2 + mm(1.5), y: tableTop - th + mm(2.2), size: 9, font: fontBold, color: black });
+  page.drawText('Anmerkung',        { x: xC3 + mm(1.5), y: tableTop - th + mm(2.2), size: 9, font: fontBold, color: black });
 
-  // Diagramm: Achsenbeschriftung X/Y (gewünscht) [10]
-  page.drawText('Zeit [sec]', { x: chartX0 + rightW - mm(22), y: tableBottom + mm(2), size: 9, font: fontBold, color: black });
-  // Y-Achse (gedreht)
-  page.drawText('Eindringtiefe [m]', {
-    x: chartX0 + mm(4),
-    y: tableBottom + mm(2),
-    size: 9,
-    font: fontBold,
-    color: black,
-    rotate: degrees(90)
-  });
-
-  // Chart-Skala auto
+  // ========= Diagramm: Achsen + keine durchgehenden Linien =========
   const times = (snap.times || []).slice(0, 25).map(v => Number(v || 0));
   const maxT = Math.max(0, ...times);
   const scale = niceTicks(maxT, 4);
@@ -706,18 +696,31 @@ async function exportPdfDownload(optionalSnap = null) {
   const innerW = innerR - innerL;
   const chartX = (v) => innerL + (Math.max(0, Math.min(xMax, v)) / xMax) * innerW;
 
-  const chartTop = tableTop - th;       // direkt unter Headerzeile
+  const chartTop = tableTop - th;
   const chartBottom = tableBottom;
 
-  // Diagramm: keine durchgängigen Rahmenlinien -> nur Achsenlinie + kurze Tickmarks [10]
-  // X-Achse oben als Achsenlinie
-  page.drawLine({ start: { x: innerL, y: chartTop }, end: { x: innerR, y: chartTop }, thickness: 0.8, color: black });
+  // X-Achse (oben) + Tickmarks (kurz)
+  page.drawLine({ start: { x: innerL, y: chartTop }, end: { x: innerR, y: chartTop }, thickness: 0.9, color: black });
 
-  // Tick-Labels oben + kurze Tickmarks (nicht über die ganze Höhe)
+  // Y-Achse (links) einzeichnen
+  page.drawLine({ start: { x: innerL, y: chartBottom }, end: { x: innerL, y: chartTop }, thickness: 0.9, color: black });
+
+  // Achsenbeschriftung
+  page.drawText('Zeit [sec]', { x: innerR - mm(18), y: chartBottom + mm(2.2), size: 9, font: fontBold, color: black });
+  page.drawText('Eindringtiefe [m]', {
+    x: innerL - mm(12),
+    y: chartBottom + mm(2),
+    size: 9,
+    font: fontBold,
+    color: black,
+    rotate: degrees(90)
+  });
+
+  // Tick-Labels oben + kurze Tickmarks (keine durchgängigen Gridlines)
   scale.ticks.forEach((t) => {
     const gx = chartX(t);
     page.drawText(String(t), { x: gx - mm(2), y: tableTop - th + mm(2.1), size: 8, font: fontReg, color: black });
-    page.drawLine({ start: { x: gx, y: chartTop }, end: { x: gx, y: chartTop - mm(2.2) }, thickness: 0.8, color: black });
+    page.drawLine({ start: { x: gx, y: chartTop }, end: { x: gx, y: chartTop - mm(2.2) }, thickness: 0.9, color: black });
   });
 
   // Zeilen
@@ -734,7 +737,7 @@ async function exportPdfDownload(optionalSnap = null) {
   for (let i = 0; i < 25; i++) {
     const yBot = yRowTop - dataRowH;
 
-    // WICHTIG: Zeilenlinie nur über Tabellenbereich, NICHT durchs Diagramm (gewünscht)
+    // Zeilenlinie nur in Tabelle links (nicht durchs Diagramm)
     page.drawLine({ start: { x: x0, y: yBot }, end: { x: x0 + leftW, y: yBot }, thickness: 1, color: black });
 
     const t = Number(snap.times?.[i] || 0);
@@ -748,9 +751,11 @@ async function exportPdfDownload(optionalSnap = null) {
     page.drawText(depthLabel(i), { x: x0 + mm(1.5), y: yBot + mm(1.5), size: 9.5, font: fontReg, color: black });
     if (t > 0) page.drawText(String(t), { x: xC1 + mm(1.5), y: yBot + mm(1.5), size: 9.5, font: fontReg, color: black });
     page.drawText(fmtComma(rd, 2), { x: xC2 + mm(1.5), y: yBot + mm(1.5), size: 9.5, font: fontReg, color: black });
-    if (note) drawTextFit(page, note, xC3 + mm(1.5), yBot + mm(1.5), (x0 + leftW - mm(2)) - (xC3 + mm(1.5)), fontReg, 9, black);
 
-    // Balken im Diagramm
+    const noteMaxW = (x0 + leftW - mm(2)) - (xC3 + mm(1.5));
+    if (note) drawTextFit(page, note, xC3 + mm(1.5), yBot + mm(1.5), noteMaxW, fontReg, 9, black);
+
+    // Diagrammbalken: gelb + schwarze Umrandung
     if (t > 0) {
       const barH = dataRowH * 0.60;
       const barY = yBot + (dataRowH - barH) / 2;
@@ -759,14 +764,16 @@ async function exportPdfDownload(optionalSnap = null) {
         y: barY,
         width: Math.max(0.5, chartX(t) - chartX(0)),
         height: barH,
-        color: rgb(1, 0.929, 0)
+        color: rgb(1, 0.929, 0),
+        borderColor: black,
+        borderWidth: 0.6
       });
     }
 
     yRowTop = yBot;
   }
 
-  // Footer: Linie nur über Tabelle links (kein "Rahmen" durchs Diagramm)
+  // Footer (nur links Linien)
   const fy1 = yRowTop - dataRowH;
   page.drawLine({ start: { x: x0, y: fy1 }, end: { x: x0 + leftW, y: fy1 }, thickness: 1, color: black });
 
@@ -777,8 +784,9 @@ async function exportPdfDownload(optionalSnap = null) {
   const fy2 = fy1 - dataRowH;
   page.drawLine({ start: { x: x0, y: fy2 }, end: { x: x0 + leftW, y: fy2 }, thickness: 1, color: black });
 
-  // Σ Pfahlwiderstand: umbrechen, damit es lesbar bleibt [11]
-  drawTextWrap(page, 'Σ Pfahlwiderstand Rd', x0 + mm(1.5), fy2 + mm(4.5), (xC1 - mm(2)) - (x0 + mm(1.5)), fontBold, 9.5, 10, black, 2);
+  // Σ Pfahlwiderstand: jetzt hat c1 mehr Breite, zusätzlich Wrap als Sicherheit
+  const sigmaMaxW = (xC1 - mm(2)) - (x0 + mm(1.5));
+  drawTextWrap(page, 'Σ Pfahlwiderstand Rd', x0 + mm(1.5), fy2 + mm(4.8), sigmaMaxW, fontBold, 9.5, 10, black, 2);
 
   page.drawText(fmtComma(sumRd, 2), { x: xC1 + mm(1.5), y: fy2 + mm(1.5), size: 10, font: fontReg, color: black });
 
@@ -792,7 +800,7 @@ async function exportPdfDownload(optionalSnap = null) {
     color: ok ? rgb(0, 0.5, 0) : rgb(0.8, 0, 0)
   });
 
-  // Signaturbereich (wie Vorlage) [9][10]
+  // Signaturbereich
   const signTop = y0 + mm(22);
   page.drawLine({ start: { x: x0, y: signTop }, end: { x: x0 + W, y: signTop }, thickness: 1, color: black });
   page.drawLine({ start: { x: x0 + W / 2, y: y0 }, end: { x: x0 + W / 2, y: signTop }, thickness: 1, color: black });
