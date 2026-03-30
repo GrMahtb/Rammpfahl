@@ -1,7 +1,7 @@
 {
   "name": "HTB Rammpfahl-Protokoll",
   "short_name": "HTB Rammpfahl",
-  "description": "Rammpfahl-Protokoll, Bemessung und Variantenvergleich für HTB.",
+  "description": "Rammpfahl-Protokoll, Zeitmessung, PDF-Export",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
