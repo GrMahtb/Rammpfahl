@@ -1,347 +1,485 @@
-<!doctype html>
-<html lang="de">
-<head>
-  <meta charset="utf-8"/>
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
-  <meta name="theme-color" content="#111111"/>
-  <meta name="apple-mobile-web-app-capable" content="yes"/>
-  <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
-  <meta name="apple-mobile-web-app-title" content="HTB Rammpfahl"/>
-  <title>HTB Rammpfahl-Protokoll</title>
-  <link rel="manifest" href="manifest.json"/>
-  <link rel="icon" type="image/svg+xml" href="icon.svg"/>
-  <link rel="apple-touch-icon" sizes="180x180" href="launchericon-192x192.png"/>
-  <link rel="stylesheet" href="styles.css"/>
-</head>
-<body>
+'use strict';
 
-<!-- HEADER -->
-<header class="brand">
-  <div class="brand__bar">
-    <div class="brand__logo">
-      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 637.8 496.06" preserveAspectRatio="xMidYMid meet">
-        <rect width="637.8" height="496.06" fill="#ffed00"/>
-        <path fill="#111111" d="M531.5,177.12H148.73l43.08-28.73c6.57-4.38,14.29-6.72,22.18-6.72h285.8s-140.7-93.84-140.7-93.84c-.7-.48-1.44-.95-2.15-1.42-21.73-14.64-54.36-14.64-76.09,0-.72.48-1.44.94-2.15,1.42L66.6,189.29h0c-4.68,3.2-8.98,6.93-12.8,11.12-41.01,45.63-8.95,118.29,52.5,118.53h382.77l-43.08,28.73c-6.57,4.38-14.29,6.72-22.19,6.72H138.01s140.71,93.84,140.71,93.84c.7.49,1.44.95,2.15,1.43,21.73,14.64,54.36,14.64,76.09,0,.72-.48,1.44-.94,2.14-1.42l212.1-141.45h0c4.69-3.21,9.01-6.96,12.84-11.16,11.73-12.89,18.35-30.15,18.33-47.58,0-39.16-31.73-70.9-70.87-70.9Z"/>
-        <path fill="#ffed00" d="M438.32,263.5c.08-5.32-1.27-9.39-4.05-12.22-2.79-2.82-7.04-4.81-12.77-5.96,4.83-.9,8.43-2.8,10.81-5.71,2.37-2.91,3.56-6.61,3.56-11.11v-3.44c0-4.83-.94-8.72-2.82-11.67-1.88-2.95-4.75-5.08-8.6-6.39-3.85-1.31-8.72-1.96-14.61-1.96h-157.8v33.77h-30.21v-33.77h-22.59v85.96h22.59v-35.73h30.21v35.73h22.72v-69.26h33.52v69.26h22.84v-69.26h33.4v69.26h45.31c6.38,0,11.69-.78,15.9-2.33,4.21-1.55,7.41-3.99,9.58-7.31,2.17-3.32,3.25-7.55,3.25-12.71l-.25-5.16ZM386.87,220.77h18.42c2.78,0,4.81.57,6.08,1.72,1.27,1.15,1.9,3.11,1.9,5.89v3.19c0,1.96-.29,3.54-.86,4.73-.57,1.19-1.43,2.05-2.58,2.58-1.15.53-2.7.8-4.67.8h-18.3v-18.91ZM414.99,266.82c0,1.96-.31,3.58-.92,4.85-.61,1.27-1.56,2.17-2.82,2.7-1.27.53-2.93.8-4.97.8h-19.4v-21h19.4c2.13,0,3.83.25,5.1.74,1.27.49,2.19,1.35,2.76,2.58s.86,2.87.86,4.91v4.42Z"/>
-      </svg>
-    </div>
-    <div class="brand__info">
-      <div class="brand__company">HTB Baugesellschaft m.b.H.</div>
-      <div class="brand__subtitle">Rammpfahl-Protokoll · Bemessung · Variantenvergleich</div>
-    </div>
+/* =========================================================
+   HTB RAMMPFAHL – app.js (v2)
+   Änderungen:
+   - Erste Meter werden angerechnet (keine 1,5m-Sperre mehr)
+   - Bemerkungsspalte entfernt
+   - Zeitmessung per Start/Stop, Auto-Übernahme in Zeile, Auto-Weiter
+   - PDF-Drucklayout im Stil deiner Vorlage [9]
+   - Autosave/Restore in localStorage (interner Speicher)
+   - Rd-Berechnung passend zur Bemessungstabelle (Ø220) [1]
+========================================================= */
+
+const STORAGE_KEY = 'htb-rammpfahl-protokoll-draft-v2';
+
+const $ = (id) => document.getElementById(id);
+
+// Tiefenstufen 0–24m (25 Zeilen à 1m)
+const DEPTHS = Array.from({ length: 25 }, (_, i) => i);
+
+/* Bemessungstabelle-Logik (sec/m-Klassen) aus deiner Vorlage [1]
+   Wichtig: Die in der Tabelle angegebenen Rd/m-Werte bei Ø220 entsprechen qs * π * d
+   (Sicherheitsbeiwert ist laut Tabelle bereits enthalten) [1].
+*/
+const SOIL_QS = {
+  nichtbindig: {
+    // sec/m Klasse -> qs (kN/m²)
+    // gedrückt: 0
+    qs_5_10: 40,      // (40) Klammerwert [1]
+    qs_10_20: 80,
+    qs_20_30: 120,
+    qs_gt_30: 150
+  },
+  bindig: {
+    qs_5_10: 20,      // (20) Klammerwert [1]
+    qs_10_20: 40,     // (40) Klammerwert [1]
+    qs_20_30: 70,
+    qs_gt_30: 100
+  }
+};
+
+function fmtComma(n, digits = 2) {
+  return Number(n).toFixed(digits).replace('.', ',');
+}
+
+function depthLabel(d) {
+  return `${d}-${d + 1}m`;
+}
+
+function qsFromTime(secPerM, bodenart) {
+  const s = SOIL_QS[bodenart] || SOIL_QS.bindig;
+  if (!secPerM || secPerM <= 0) return { qs: 0, isKlammer: false, cls: '—' };
+
+  if (secPerM < 5) return { qs: 0, isKlammer: false, cls: 'gedrückt' };
+  if (secPerM < 10) return { qs: s.qs_5_10, isKlammer: true, cls: '5-10' };
+  if (secPerM < 20) {
+    const isK = (bodenart === 'bindig'); // bei bindig ist 10-20 ebenfalls Klammerwert [1]
+    return { qs: s.qs_10_20, isKlammer: isK, cls: '10-20' };
+  }
+  if (secPerM <= 30) return { qs: s.qs_20_30, isKlammer: false, cls: '20-30' };
+  return { qs: s.qs_gt_30, isKlammer: false, cls: '>30' };
+}
+
+function rdPerMeter(secPerM, bodenart, schuhDmMm, includeKlammer) {
+  const schuhM = (Number(schuhDmMm) || 220) / 1000;
+  const { qs, isKlammer } = qsFromTime(secPerM, bodenart);
+  if (!includeKlammer && isKlammer) return 0;
+  // Rd/m = qs * π * d  (passt zu den Tabellenwerten bei Ø220) [1]
+  return qs * Math.PI * schuhM;
+}
+
+/* ===================== DOM/STATE ===================== */
+let timeInputs = []; // 25 inputs
+
+const state = {
+  timer: { running: false, startMs: 0, raf: null, selectedIdx: 0 },
+  includeKlammer: false
+};
+
+function collectFormState() {
+  return {
+    v: 2,
+    meta: {
+      datum: $('inp-datum')?.value || '',
+      pfahlNr: $('inp-pfahl-nr')?.value || '',
+      projekt: $('inp-projekt')?.value || '',
+      kostenstelle: $('inp-kostenstelle')?.value || '',
+      auftraggeber: $('inp-auftraggeber')?.value || '',
+      traeger: $('inp-traeger')?.value || '',
+      hammer: $('inp-hammer')?.value || '',
+      pfahltyp: $('inp-pfahltyp')?.value || '',
+      schuh: $('inp-schuh')?.value || '',
+      bodenart: $('inp-bodenart')?.value || 'bindig',
+      ed: $('inp-ed')?.value || ''
+    },
+    includeKlammer: state.includeKlammer ? 1 : 0,
+    times: DEPTHS.map((_, i) => timeInputs[i]?.value || '')
+  };
+}
+
+function applyFormState(s) {
+  if (!s || !s.meta) return;
+
+  $('inp-datum').value = s.meta.datum || $('inp-datum').value;
+  $('inp-pfahl-nr').value = s.meta.pfahlNr || '';
+  $('inp-projekt').value = s.meta.projekt || '';
+  $('inp-kostenstelle').value = s.meta.kostenstelle || '';
+  $('inp-auftraggeber').value = s.meta.auftraggeber || '';
+  $('inp-traeger').value = s.meta.traeger || '';
+  $('inp-hammer').value = s.meta.hammer || '';
+  if (s.meta.pfahltyp) $('inp-pfahltyp').value = s.meta.pfahltyp;
+  if (s.meta.schuh) $('inp-schuh').value = s.meta.schuh;
+  if (s.meta.bodenart) $('inp-bodenart').value = s.meta.bodenart;
+  if (s.meta.ed) $('inp-ed').value = s.meta.ed;
+
+  state.includeKlammer = !!Number(s.includeKlammer || 0);
+  const opt = $('optIncludeKlammer');
+  if (opt) opt.value = state.includeKlammer ? '1' : '0';
+
+  if (Array.isArray(s.times)) {
+    s.times.slice(0, 25).forEach((v, i) => {
+      if (timeInputs[i]) timeInputs[i].value = v;
+    });
+  }
+}
+
+let saveT = null;
+function saveDebounced() {
+  clearTimeout(saveT);
+  saveT = setTimeout(() => {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(collectFormState()));
+    } catch (_) {}
+  }, 250);
+}
+
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return;
+    const s = JSON.parse(raw);
+    applyFormState(s);
+  } catch (_) {}
+}
+
+/* ===================== PROTOKOLL TABLE ===================== */
+function buildMeterSelect() {
+  const sel = $('meterSelect');
+  if (!sel) return;
+  sel.innerHTML = '';
+  DEPTHS.forEach((d, i) => sel.appendChild(new Option(depthLabel(d), String(i))));
+  sel.value = String(state.timer.selectedIdx || 0);
+  sel.addEventListener('change', () => {
+    state.timer.selectedIdx = Number(sel.value) || 0;
+    saveDebounced();
+  });
+}
+
+function buildProtocolTable() {
+  const tbody = $('protoBody');
+  tbody.innerHTML = '';
+  timeInputs = [];
+
+  DEPTHS.forEach((d, i) => {
+    const tr = document.createElement('tr');
+
+    const tdDepth = document.createElement('td');
+    tdDepth.textContent = depthLabel(d);
+    tr.appendChild(tdDepth);
+
+    const tdTime = document.createElement('td');
+    const inp = document.createElement('input');
+    inp.type = 'number';
+    inp.min = '0';
+    inp.step = '1';
+    inp.placeholder = 'sec';
+    inp.addEventListener('input', () => { recalc(); saveDebounced(); });
+    timeInputs.push(inp);
+    tdTime.appendChild(inp);
+    tr.appendChild(tdTime);
+
+    const tdRd = document.createElement('td');
+    tdRd.className = 'rd-cell';
+    tdRd.id = `rd-${i}`;
+    tdRd.textContent = '0,00';
+    tr.appendChild(tdRd);
+
+    tbody.appendChild(tr);
+  });
+}
+
+/* ===================== RECALC ===================== */
+function recalc() {
+  const bodenart = $('inp-bodenart').value;
+  const schuhDm  = Number($('inp-schuh').value) || 220;
+  const ed       = Number($('inp-ed').value) || 0;
+  const includeK = state.includeKlammer;
+
+  let sumRd = 0;
+  let sumTime = 0;
+
+  DEPTHS.forEach((_, i) => {
+    const t = Number(timeInputs[i]?.value || 0);
+    if (t > 0) sumTime += t;
+
+    const rd = t > 0 ? rdPerMeter(t, bodenart, schuhDm, includeK) : 0;
+    sumRd += rd;
+
+    const rdEl = $(`rd-${i}`);
+    if (rdEl) rdEl.textContent = fmtComma(rd, 2);
+  });
+
+  $('sumTime').textContent = `${sumTime} s`;
+  $('sumRd').textContent = `${fmtComma(sumRd, 2)} kN`;
+
+  const ok = sumRd >= ed;
+  const sumResult = $('sumResult');
+  sumResult.textContent = ok ? 'Rd ≥ Ed' : 'Rd < Ed';
+  sumResult.className = 'sum-result ' + (ok ? 'ok' : 'err');
+}
+
+/* ===================== TIMER (Start/Stop) ===================== */
+function setTimerUI() {
+  const live = $('timeLive');
+  const bS = $('btnTimeStart');
+  const bP = $('btnTimeStop');
+  if (!live || !bS || !bP) return;
+
+  bS.disabled = state.timer.running;
+  bP.disabled = !state.timer.running;
+}
+
+function timerTick() {
+  if (!state.timer.running) return;
+  const live = $('timeLive');
+  const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs) / 1000));
+  if (live) live.value = `${sec} s`;
+  state.timer.raf = requestAnimationFrame(timerTick);
+}
+
+function timerStart() {
+  if (state.timer.running) return;
+  state.timer.running = true;
+  state.timer.startMs = Date.now();
+  const live = $('timeLive');
+  if (live) live.value = '0 s';
+  setTimerUI();
+  timerTick();
+}
+
+function timerStopAndWrite() {
+  if (!state.timer.running) return;
+
+  state.timer.running = false;
+  if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
+  state.timer.raf = null;
+
+  const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs) / 1000));
+  const idx = state.timer.selectedIdx || 0;
+
+  if (timeInputs[idx]) timeInputs[idx].value = String(sec);
+
+  // Auto-weiter zum nächsten Meter
+  const next = Math.min(DEPTHS.length - 1, idx + 1);
+  state.timer.selectedIdx = next;
+  const sel = $('meterSelect');
+  if (sel) sel.value = String(next);
+
+  const live = $('timeLive');
+  if (live) live.value = `${sec} s`;
+
+  recalc();
+  saveDebounced();
+  setTimerUI();
+}
+
+function initTimerControls() {
+  $('btnTimeStart')?.addEventListener('click', timerStart);
+  $('btnTimeStop')?.addEventListener('click', timerStopAndWrite);
+
+  $('optIncludeKlammer')?.addEventListener('change', () => {
+    state.includeKlammer = $('optIncludeKlammer').value === '1';
+    recalc();
+    saveDebounced();
+  });
+}
+
+/* ===================== PDF EXPORT (Layout wie Vorlage) ===================== */
+function exportPDF_likeTemplate() {
+  // Layout/Bezeichnungen wie im Protokoll-PDF [9]
+  const meta = collectFormState().meta;
+
+  const pfahltypText = (() => {
+    // im Select steht value (intern) – wir nehmen Anzeige-Text
+    const sel = $('inp-pfahltyp');
+    const txt = sel?.options?.[sel.selectedIndex]?.text || '';
+    return txt || meta.pfahltyp || '';
+  })();
+
+  const bodenartText = (meta.bodenart === 'nichtbindig') ? 'nicht bindig' : 'bindig';
+  const schuhText = `ø${Number(meta.schuh || 220)}mm`;
+
+  const ed = Number(meta.ed || 0);
+  const includeK = state.includeKlammer;
+
+  // Tabellenzeilen + Summen
+  let sumTime = 0;
+  let sumRd = 0;
+
+  let rowsHtml = '';
+  DEPTHS.forEach((d, i) => {
+    const t = Number(timeInputs[i]?.value || 0);
+    if (t > 0) sumTime += t;
+
+    const rd = t > 0 ? rdPerMeter(t, meta.bodenart, Number(meta.schuh || 220), includeK) : 0;
+    sumRd += rd;
+
+    rowsHtml += `
+      <tr>
+        <td class="c1">${depthLabel(d)}</td>
+        <td class="c2">${t > 0 ? t : ''}</td>
+        <td class="c3">${t > 0 ? fmtComma(rd, 2) : '0,00'}</td>
+      </tr>
+    `;
+  });
+
+  const ok = sumRd >= ed;
+
+  const w = window.open('', '_blank');
+  if (!w) { alert('Popup blockiert!'); return; }
+
+  w.document.open();
+  w.document.write(`<!doctype html><html><head>
+<meta charset="utf-8"/>
+<title>RAMMPFAHL-PROTOKOLL</title>
+<style>
+  @page { size: A4 portrait; margin: 10mm; }
+  body { font-family: Arial, sans-serif; color:#000; font-size:10px; }
+  .sheet { width: 190mm; margin: 0 auto; }
+  table { border-collapse: collapse; width: 100%; }
+  .outer { border: 2px solid #000; }
+  .outer td, .outer th { border: 1px solid #000; padding: 4px 6px; vertical-align: middle; }
+  .title { font-weight: 900; text-align: left; font-size: 11px; }
+  .lbl { font-weight: 700; width: 18%; white-space: nowrap; }
+  .val { width: 32%; }
+  .rightLbl { font-weight: 700; width: 24%; white-space: nowrap; }
+  .rightVal { width: 26%; }
+  .subtle { font-weight: 700; }
+  .protoHead th { font-weight: 900; text-align: left; }
+  .proto td { height: 18px; }
+  .c1 { width: 34%; }
+  .c2 { width: 33%; }
+  .c3 { width: 33%; }
+  .footerRow td { font-weight: 700; }
+  .sign td { height: 34px; }
+  .resultCell { font-weight: 900; text-align: left; }
+</style>
+</head><body>
+<div class="sheet">
+  <table class="outer">
+    <tr>
+      <td class="title" colspan="4">RAMMPFAHL-PROTOKOLL RDS SPEZIAL TIEFBAU</td>
+    </tr>
+    <tr>
+      <td class="lbl">Datum:</td><td class="val">${meta.datum || ''}</td>
+      <td class="rightLbl">Kostenstelle:</td><td class="rightVal">${meta.kostenstelle || ''}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Projekt:</td><td class="val">${meta.projekt || ''}</td>
+      <td class="rightLbl">Auftraggeber:</td><td class="rightVal">${meta.auftraggeber || ''}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Trägergerät:</td><td class="val">${meta.traeger || 'SK 270'}</td>
+      <td class="rightLbl">Pfahlnummer:</td><td class="rightVal">${meta.pfahlNr || ''}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Hyd-hammer:</td><td class="val">${meta.hammer || 'Wimmer WH26'}</td>
+      <td class="rightLbl">Pfahl-Bemessungslast [kN] :</td><td class="rightVal">${meta.ed ? fmtComma(Number(meta.ed), 2) : ''}</td>
+    </tr>
+    <tr>
+      <td class="lbl">Pfahltyp:</td><td class="val">${pfahltypText}</td>
+      <td class="rightLbl">${schuhText}</td><td class="rightVal">Bodenart: <span class="subtle">${bodenartText}</span></td>
+    </tr>
+
+    <tr>
+      <td colspan="4" style="padding:0">
+        <table class="proto" style="width:100%; border-collapse:collapse">
+          <tr class="protoHead">
+            <th class="c1">Eindring- tiefe[m]</th>
+            <th class="c2">Zeit [sec]</th>
+            <th class="c3">Rd&nbsp;&nbsp;&nbsp;&nbsp;[kN]</th>
+          </tr>
+          ${rowsHtml}
+          <tr class="footerRow">
+            <td>Gesamtzeit:</td>
+            <td>${sumTime}</td>
+            <td>${meta.ed ? fmtComma(Number(meta.ed), 2) : ''}</td>
+          </tr>
+          <tr class="footerRow">
+            <td>Σ Pfahlwiderstand Rd</td>
+            <td>${fmtComma(sumRd, 2)}</td>
+            <td class="resultCell">${ok ? 'Rd ≥ Ed' : 'Rd < Ed'}</td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+
+    <tr class="sign">
+      <td colspan="2">AN ( Datum; Unterschrift)</td>
+      <td colspan="2">AG/ ÖBA (Datum; Unterschrift)</td>
+    </tr>
+  </table>
+
+  <div style="margin-top:6px; font-size:9px; color:#444;">
+    Hinweis: Druckdialog → Skalierung <b>100%</b>, Kopf-/Fußzeilen deaktivieren (für 1:1 Layout).
   </div>
-</header>
+</div>
+<script>setTimeout(()=>window.print(), 250);<\/script>
+</body></html>`);
+  w.document.close();
+}
 
-<!-- STATUS -->
-<div id="statusBar" class="statusBar" hidden></div>
+/* ===================== EVENTS (Meta) ===================== */
+function hookMetaAutosave() {
+  [
+    'inp-datum','inp-pfahl-nr','inp-projekt','inp-kostenstelle','inp-auftraggeber',
+    'inp-traeger','inp-hammer','inp-pfahltyp','inp-schuh','inp-bodenart','inp-ed'
+  ].forEach(id => {
+    $(id)?.addEventListener('input', () => { recalc(); saveDebounced(); });
+    $(id)?.addEventListener('change', () => { recalc(); saveDebounced(); });
+  });
 
-<!-- TABS -->
-<nav class="tabs" role="tablist">
-  <button class="tab is-active" data-tab="protokoll" type="button">Protokoll</button>
-  <button class="tab" data-tab="bemessung" type="button">Bemessung</button>
-  <button class="tab" data-tab="varianten" type="button">Varianten</button>
-  <button class="tab" data-tab="app" type="button">App</button>
-</nav>
+  // Pfahltyp -> Schuh-Ø aus value "|...|...|220"
+  $('inp-pfahltyp')?.addEventListener('change', () => {
+    const v = $('inp-pfahltyp').value || '';
+    const parts = v.split('|');
+    if (parts[2]) $('inp-schuh').value = parts[2];
+    recalc();
+    saveDebounced();
+  });
 
-<!-- ═══════════ TAB: PROTOKOLL ═══════════ -->
-<main id="tab-protokoll" class="pane is-active" role="tabpanel">
+  $('btnPdf')?.addEventListener('click', exportPDF_likeTemplate);
+  $('btnReset')?.addEventListener('click', () => {
+    // Reset UI, aber Autosave läuft danach wieder
+    timeInputs.forEach(inp => inp.value = '');
+    $('timeLive').value = '0 s';
+    state.timer.selectedIdx = 0;
+    $('meterSelect').value = '0';
+    recalc();
+    saveDebounced();
+  });
+}
 
-  <!-- Stammdaten -->
-  <section class="card">
-    <div class="card__title">Stammdaten</div>
-    <div class="form-grid">
-      <label class="field">
-        <span class="field__label">Datum</span>
-        <input id="inp-datum" class="field__input" type="date"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Pfahlnummer</span>
-        <input id="inp-pfahl-nr" class="field__input" type="number" min="1" value="1"/>
-      </label>
-      <label class="field field--full">
-        <span class="field__label">Projekt</span>
-        <input id="inp-projekt" class="field__input" type="text" placeholder="Projektbezeichnung"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Kostenstelle</span>
-        <input id="inp-kostenstelle" class="field__input" type="text"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Auftraggeber</span>
-        <input id="inp-auftraggeber" class="field__input" type="text"/>
-      </label>
-    </div>
-  </section>
+/* ===================== TABS + PWA SW (wie vorher) ===================== */
+document.querySelectorAll('.tab').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab').forEach(b => b.classList.toggle('is-active', b === btn));
+    document.querySelectorAll('.pane').forEach(p => {
+      const on = p.id === `tab-${btn.dataset.tab}`;
+      p.classList.toggle('is-active', on);
+      p.hidden = !on;
+    });
+  });
+});
 
-  <!-- Gerät & Pfahl -->
-  <section class="card">
-    <div class="card__title">Gerät &amp; Pfahltyp</div>
-    <div class="form-grid">
-      <label class="field">
-        <span class="field__label">Trägergerät</span>
-        <input id="inp-traeger" class="field__input" type="text" value="SK 270"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Hyd-Hammer</span>
-        <input id="inp-hammer" class="field__input" type="text" value="Wimmer WH26"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Pfahltyp</span>
-        <select id="inp-pfahltyp" class="field__select">
-          <optgroup label="TRM – S320">
-            <option value="TRM98/6|98|220">TRM 98/6</option>
-            <option value="TRM98/7,5|98|220">TRM 98/7,5</option>
-            <option value="TRM118/6|118|220">TRM 118/6</option>
-            <option value="TRM118/7,5|118|220">TRM 118/7,5</option>
-            <option value="TRM118/9|118|220" selected>TRM 118/9</option>
-            <option value="TRM118/10,6|118|220">TRM 118/10,6</option>
-            <option value="TRM170/7,5|170|220">TRM 170/7,5</option>
-            <option value="TRM170/9|170|220">TRM 170/9</option>
-            <option value="TRM170/10,6|170|220">TRM 170/10,6</option>
-            <option value="TRM170/13|170|220">TRM 170/13</option>
-          </optgroup>
-          <optgroup label="SSAB – S440/S550">
-            <option value="RR140/8|139.7|220">SSAB RR140/8</option>
-            <option value="RR140/10|139.7|220">SSAB RR140/10</option>
-            <option value="RRs140/8|139.7|220">SSAB RRs140/8</option>
-            <option value="RR170/10|168.3|220">SSAB RR170/10</option>
-            <option value="RR170/12,5|168.3|220">SSAB RR170/12,5</option>
-            <option value="RR190/10|190|220">SSAB RR190/10</option>
-          </optgroup>
-        </select>
-      </label>
-      <label class="field">
-        <span class="field__label">Rammschuh-Ø [mm]</span>
-        <input id="inp-schuh" class="field__input" type="number" value="220"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Bodenart</span>
-        <select id="inp-bodenart" class="field__select">
-          <option value="bindig">Bindig</option>
-          <option value="nichtbindig">Nicht bindig</option>
-        </select>
-      </label>
-      <label class="field">
-        <span class="field__label">Bemessungslast Ed [kN]</span>
-        <input id="inp-ed" class="field__input" type="number" value="350.6" step="0.1"/>
-      </label>
-    </div>
-  </section>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+}
 
-  <!-- Tiefentabelle -->
-  <section class="card">
-    <div class="card__title">Ramm-Protokoll (Tiefentabelle)</div>
-    <div class="hint-box">
-      ℹ️ Erste 1,5 m werden nicht angerechnet. Klammerwerte (locker) werden nicht berücksichtigt.
-    </div>
-    <div class="table-wrap">
-      <table class="proto-table" id="protokollTable">
-        <thead>
-          <tr>
-            <th>Tiefe</th>
-            <th>Zeit [sec/m]</th>
-            <th>Lagerungsdichte</th>
-            <th>Rd [kN]</th>
-            <th>Σ Rd [kN]</th>
-            <th>Anmerkung</th>
-          </tr>
-        </thead>
-        <tbody id="protoBody"></tbody>
-        <tfoot>
-          <tr class="sum-row">
-            <td colspan="3"><strong>Gesamtwiderstand Σ Rd</strong></td>
-            <td id="sumRd">0.00</td>
-            <td colspan="2" id="sumResult" class="sum-result">–</td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  </section>
+/* ===================== INIT ===================== */
+(function init() {
+  // Heute vorbelegen (wie in Vorlage, aber dynamisch)
+  if ($('inp-datum') && !$('inp-datum').value) $('inp-datum').value = new Date().toISOString().slice(0, 10);
 
-  <!-- Bemessungsergebnis -->
-  <section class="card">
-    <div class="card__title">Bemessungsergebnis</div>
-    <div class="result-box" id="resultBox">
-      <div class="result-value" id="resultRd">Σ Rd = 0.00 kN</div>
-      <div class="result-vs">vs.</div>
-      <div class="result-value" id="resultEd">Ed = 350.60 kN</div>
-      <div class="result-badge" id="resultBadge">–</div>
-    </div>
-  </section>
+  buildProtocolTable();
+  buildMeterSelect();
+  initTimerControls();
 
-  <!-- Aktionen -->
-  <section class="card">
-    <div class="card__title">Aktionen</div>
-    <div class="buttons">
-      <button id="btnReset" class="btn btn--ghost" type="button">Reset</button>
-      <button id="btnPdf" class="btn btn--accent" type="button">PDF drucken</button>
-    </div>
-    <div class="hint">PDF → Druckdialog → „Als PDF speichern"</div>
-  </section>
+  // Restore gespeicherte Daten (interner Speicher)
+  loadFromStorage();
 
-</main>
-
-<!-- ═══════════ TAB: BEMESSUNG ═══════════ -->
-<main id="tab-bemessung" class="pane" role="tabpanel" hidden>
-
-  <section class="card">
-    <div class="card__title">Parameter</div>
-    <div class="form-grid">
-      <label class="field">
-        <span class="field__label">Bodenart</span>
-        <select id="bem-bodenart" class="field__select">
-          <option value="nichtbindig">Nicht bindig</option>
-          <option value="bindig">Bindig</option>
-        </select>
-      </label>
-      <label class="field">
-        <span class="field__label">Rammschuh-Ø [mm]</span>
-        <input id="bem-schuh" class="field__input" type="number" value="220"/>
-      </label>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card__title">Bemessungstabelle (Sicherheitsbeiwert 2,0 enthalten)</div>
-    <div class="hint-box">Erste 1,5 m nicht berücksichtigen. Klammerwerte (locker) nicht empfohlen.</div>
-    <table class="bem-table" id="bemTable">
-      <thead>
-        <tr>
-          <th>Eindringzeit [sec/m]</th>
-          <th>Lagerungsdichte</th>
-          <th>Mantelreibung [kN/m²]</th>
-          <th>Rd/m [kN]</th>
-        </tr>
-      </thead>
-      <tbody id="bemBody"></tbody>
-    </table>
-  </section>
-
-  <section class="card">
-    <div class="card__title">Formel</div>
-    <div class="text">
-      <p><strong>Rd/m = (qs × π × d_Schuh) / γ</strong></p>
-      <p>qs = Mantelreibungswert [kN/m²]<br/>
-         d_Schuh = Rammschuhdurchmesser [m]<br/>
-         γ = 2,0 (Sicherheitsbeiwert)</p>
-      <p class="hint-box">Hinweis: Dieser Wert gilt je Laufmeter Pfahl im entsprechenden Horizont.</p>
-    </div>
-  </section>
-
-</main>
-
-<!-- ═══════════ TAB: VARIANTEN ═══════════ -->
-<main id="tab-varianten" class="pane" role="tabpanel" hidden>
-
-  <section class="card">
-    <div class="card__title">Pfahlauswahl</div>
-    <div class="form-grid">
-      <label class="field field--full">
-        <span class="field__label">Pfahltyp 1 (z. B. TRM)</span>
-        <select id="var-pile1" class="field__select"></select>
-      </label>
-      <label class="field field--full">
-        <span class="field__label">Pfahltyp 2 (z. B. SSAB)</span>
-        <select id="var-pile2" class="field__select"></select>
-      </label>
-      <label class="field">
-        <span class="field__label">Betonklasse</span>
-        <select id="var-beton" class="field__select">
-          <option value="0">Kein Beton</option>
-          <option value="16.67">C20/25 (fck=25/γ=1,5)</option>
-          <option value="16.67" selected>C25/30 (fck=25/γ=1,5)</option>
-        </select>
-      </label>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card__title">Vergleichsergebnis</div>
-    <div id="varResult" class="var-result">
-      <div class="var-col" id="varCol1">–</div>
-      <div class="var-divider">vs.</div>
-      <div class="var-col" id="varCol2">–</div>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card__title">Verfügbare TRM-Produkte</div>
-    <div class="table-wrap">
-      <table class="bem-table">
-        <thead>
-          <tr><th>Typ</th><th>Ø außen</th><th>WS</th><th>kg/m</th><th>€/m</th></tr>
-        </thead>
-        <tbody id="trmList"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card__title">Verfügbare SSAB-Produkte</div>
-    <div class="table-wrap">
-      <table class="bem-table">
-        <thead>
-          <tr><th>Typ</th><th>Güte</th><th>Ø außen</th><th>WS</th><th>kg/m</th><th>€/m</th></tr>
-        </thead>
-        <tbody id="ssabList"></tbody>
-      </table>
-    </div>
-  </section>
-
-</main>
-
-<!-- ═══════════ TAB: APP ═══════════ -->
-<main id="tab-app" class="pane" role="tabpanel" hidden>
-  <section class="card">
-    <div class="card__title">Als App installieren (PWA)</div>
-    <div class="text">
-      <p><strong>Android (Chrome):</strong> Menü (⋮) → „App installieren"</p>
-      <p><strong>iPhone (Safari):</strong> Teilen (□↑) → „Zum Home-Bildschirm"</p>
-    </div>
-  </section>
-  <section class="card">
-    <div class="card__title">Über diese App</div>
-    <div class="text">
-      <p>HTB Rammpfahl-Protokoll v1.0 – PWA (läuft offline).</p>
-      <p>Berechnung nach Erfahrungswerten mit Sicherheitsbeiwert γ = 2,0.</p>
-      <p>Tragfähigkeiten nach ON 2567 und ÖNORM EN 12699.</p>
-      <p class="hint-box">Alle Angaben ohne Gewähr. Kein Ersatz für geotechnisches Gutachten.</p>
-    </div>
-  </section>
-  <section class="card">
-    <div class="card__title">Innenträgfähigkeit (ON 2567:2012)</div>
-    <div class="text">
-      <p>Tabellen für duktile Gussrohre (mantelverpresst, nat. Böden 50 Jahre):</p>
-    </div>
-    <div class="table-wrap">
-      <table class="bem-table" id="on2567Table">
-        <thead>
-          <tr><th>Pfahltyp</th><th>Ohne Beton [kN]</th><th>+C20/25 [kN]</th><th>+C25/30 [kN]</th></tr>
-        </thead>
-        <tbody>
-          <tr><td>118mm/6mm</td><td>676</td><td>xxx</td><td>823</td></tr>
-          <tr><td>118mm/7,5mm</td><td>833</td><td>944</td><td>972</td></tr>
-          <tr><td>118mm/9mm</td><td>986</td><td>1.091</td><td>1.117</td></tr>
-          <tr><td>118mm/10,6mm</td><td>1.144</td><td>1.243</td><td>1.267</td></tr>
-          <tr><td>170mm/9mm</td><td>1.457</td><td>1.699</td><td>1.759</td></tr>
-          <tr><td>170mm/10,6mm</td><td>1.699</td><td>1.930</td><td>1.988</td></tr>
-          <tr><td>170mm/13mm</td><td>2.052</td><td>xxx</td><td>2.323</td></tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-</main>
-
-<!-- INSTALL BANNER -->
-<section id="installBanner" class="installBanner" hidden>
-  <div class="installBanner__text">Als App installieren (PWA)</div>
-  <button id="installBtn" class="btn btn--accent" type="button">Installieren</button>
-</section>
-
-<footer class="footer">
-  &copy; <strong>HTB Baugesellschaft m.b.H.</strong> – Rammpfahl-Protokoll PWA
-</footer>
-
-<script src="app.js"></script>
-</body>
-</html>
+  hookMetaAutosave();
+  recalc();
+  setTimerUI();
+})();
