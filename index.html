@@ -8,16 +8,19 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
   <meta name="apple-mobile-web-app-title" content="HTB Rammpfahl"/>
   <title>HTB Rammpfahl-Protokoll</title>
+
   <link rel="manifest" href="manifest.json"/>
   <link rel="icon" type="image/svg+xml" href="icon.svg"/>
   <link rel="icon" type="image/png" sizes="192x192" href="launchericon-192x192.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="launchericon-192x192.png"/>
   <link rel="stylesheet" href="styles.css"/>
+
+  <!-- PDF-LIB + FONTKIT (für arial.ttf) -->
   <script defer src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
 </head>
-<body>
 
+<body>
 <header class="brand">
   <div class="brand__bar">
     <div class="brand__logo">
@@ -30,8 +33,6 @@
   </div>
 </header>
 
-<div id="statusBar" class="statusBar" hidden></div>
-
 <nav class="tabs" role="tablist" aria-label="Menü">
   <button class="tab is-active" data-tab="protokoll" type="button">Protokoll</button>
   <button class="tab" data-tab="bemessung" type="button">Bemessung</button>
@@ -39,7 +40,7 @@
   <button class="tab" data-tab="verlauf" type="button">Verlauf</button>
 </nav>
 
-<!-- ═══════════ TAB: PROTOKOLL ═══════════ -->
+<!-- TAB: PROTOKOLL -->
 <main id="tab-protokoll" class="pane is-active" role="tabpanel">
 
   <section class="card">
@@ -49,18 +50,22 @@
         <span class="field__label">Datum</span>
         <input id="inp-datum" class="field__input" type="date"/>
       </label>
+
       <label class="field">
         <span class="field__label">Pfahlnummer</span>
         <input id="inp-pfahl-nr" class="field__input" type="number" min="1" value="1"/>
       </label>
+
       <label class="field field--full">
         <span class="field__label">Projekt</span>
         <input id="inp-projekt" class="field__input" type="text"/>
       </label>
+
       <label class="field">
         <span class="field__label">Kostenstelle</span>
         <input id="inp-kostenstelle" class="field__input" type="text"/>
       </label>
+
       <label class="field">
         <span class="field__label">Auftraggeber</span>
         <input id="inp-auftraggeber" class="field__input" type="text"/>
@@ -75,39 +80,22 @@
         <span class="field__label">Trägergerät</span>
         <input id="inp-traeger" class="field__input" type="text" value="SK 270"/>
       </label>
+
       <label class="field">
         <span class="field__label">Hyd-hammer</span>
         <input id="inp-hammer" class="field__input" type="text" value="Wimmer WH26"/>
       </label>
+
       <label class="field field--full">
         <span class="field__label">Pfahltyp</span>
-        <select id="inp-pfahltyp" class="field__select">
-          <optgroup label="TRM – S320">
-            <option value="TRM98/6">TRM 98/6</option>
-            <option value="TRM98/7,5">TRM 98/7,5</option>
-            <option value="TRM118/6">TRM 118/6</option>
-            <option value="TRM118/7,5" selected>TRM 118/7,5</option>
-            <option value="TRM118/9">TRM 118/9</option>
-            <option value="TRM118/10,6">TRM 118/10,6</option>
-            <option value="TRM170/7,5">TRM 170/7,5</option>
-            <option value="TRM170/9">TRM 170/9</option>
-            <option value="TRM170/10,6">TRM 170/10,6</option>
-            <option value="TRM170/13">TRM 170/13</option>
-          </optgroup>
-          <optgroup label="SSAB – S440/S550">
-            <option value="RR140/8">SSAB RR140/8</option>
-            <option value="RR140/10">SSAB RR140/10</option>
-            <option value="RRs140/8">SSAB RRs140/8</option>
-            <option value="RR170/10">SSAB RR170/10</option>
-            <option value="RR170/12,5">SSAB RR170/12,5</option>
-            <option value="RR190/10">SSAB RR190/10</option>
-          </optgroup>
-        </select>
+        <input id="inp-pfahltyp" class="field__input" type="text" value="118x7,5mm"/>
       </label>
+
       <label class="field">
         <span class="field__label">Rammschuh-Ø [mm]</span>
         <input id="inp-schuh" class="field__input" type="number" value="220"/>
       </label>
+
       <label class="field">
         <span class="field__label">Bodenart</span>
         <select id="inp-bodenart" class="field__select">
@@ -115,6 +103,7 @@
           <option value="nichtbindig">nicht bindig</option>
         </select>
       </label>
+
       <label class="field">
         <span class="field__label">Pfahl-Bemessungslast Ed [kN]</span>
         <input id="inp-ed" class="field__input" type="number" step="0.01" value="350.60"/>
@@ -129,10 +118,12 @@
         <span class="field__label">Aktueller Meter</span>
         <select id="meterSelect" class="field__select"></select>
       </label>
+
       <label class="field">
         <span class="field__label">Live-Zeit</span>
         <input id="timeLive" class="field__input" type="text" value="0 s" readonly/>
       </label>
+
       <label class="field">
         <span class="field__label">Klammerwerte anrechnen?</span>
         <select id="optIncludeKlammer" class="field__select">
@@ -140,21 +131,21 @@
           <option value="1">Ja</option>
         </select>
       </label>
+
       <div class="field" style="justify-content:flex-end">
         <span class="field__label">&nbsp;</span>
         <div class="buttons" style="justify-content:flex-start">
-          <button id="btnTimeStart" class="btn btn--accent" type="button">▶ Start</button>
-          <button id="btnTimeStop" class="btn btn--ghost" type="button" disabled>■ Stop</button>
+          <button id="btnTimeToggle" class="btn btn--accent" type="button">Start</button>
         </div>
       </div>
     </div>
-    <div class="hint">Start drücken → am Ende des Meters Stop → Sekunden werden automatisch eingetragen und auf den nächsten Meter weitergeschaltet.</div>
+    <div class="hint">Start → Stop: Zeit wird automatisch in die Zeile geschrieben und auf den nächsten Meter weitergeschaltet.</div>
   </section>
 
   <section class="card">
     <div class="card__title">RAMMPFAHL-PROTOKOLL</div>
     <div class="table-wrap">
-      <table class="proto-table" id="protokollTable">
+      <table class="proto-table">
         <thead>
           <tr>
             <th>Eindring-tiefe [m]</th>
@@ -194,94 +185,30 @@
 
 </main>
 
-<!-- ═══════════ TAB: BEMESSUNG ═══════════ -->
+<!-- TAB: BEMESSUNG -->
 <main id="tab-bemessung" class="pane" role="tabpanel" hidden>
   <section class="card">
-    <div class="card__title">Parameter</div>
-    <div class="form-grid">
-      <label class="field">
-        <span class="field__label">Bodenart</span>
-        <select id="bem-bodenart" class="field__select">
-          <option value="nichtbindig">Nicht bindig</option>
-          <option value="bindig" selected>Bindig</option>
-        </select>
-      </label>
-      <label class="field">
-        <span class="field__label">Rammschuh-Ø [mm]</span>
-        <input id="bem-schuh" class="field__input" type="number" value="220"/>
-      </label>
-    </div>
-  </section>
-  <section class="card">
-    <div class="card__title">Bemessungstabelle (Sicherheitsbeiwert 2,0 enthalten) [1]</div>
-    <div class="table-wrap">
-      <table class="bem-table" id="bemTable">
-        <thead>
-          <tr>
-            <th>sec/m</th>
-            <th>Lagerungsdichte</th>
-            <th>qs [kN/m²]</th>
-            <th>Rd/m [kN]</th>
-            <th>Hinweis</th>
-          </tr>
-        </thead>
-        <tbody id="bemBody"></tbody>
-      </table>
+    <div class="card__title">Bemessung</div>
+    <div class="text">
+      <p>Wird aus der sec/m-Klassierung (bindig / nicht bindig) berechnet.</p>
     </div>
   </section>
 </main>
 
-<!-- ═══════════ TAB: VARIANTEN ═══════════ -->
+<!-- TAB: VARIANTEN -->
 <main id="tab-varianten" class="pane" role="tabpanel" hidden>
   <section class="card">
-    <div class="card__title">Verfügbare TRM-Produkte [1]</div>
-    <div class="table-wrap">
-      <table class="bem-table">
-        <thead>
-          <tr><th>Typ</th><th>Ø außen</th><th>Ø innen</th><th>WS</th><th>kg/m</th><th>€/m</th></tr>
-        </thead>
-        <tbody id="trmList"></tbody>
-      </table>
-    </div>
-  </section>
-  <section class="card">
-    <div class="card__title">Verfügbare SSAB-Produkte [1]</div>
-    <div class="table-wrap">
-      <table class="bem-table">
-        <thead>
-          <tr><th>Typ</th><th>Güte</th><th>Ø außen</th><th>WS</th><th>kg/m</th><th>€/m</th></tr>
-        </thead>
-        <tbody id="ssabList"></tbody>
-      </table>
-    </div>
+    <div class="card__title">Varianten</div>
+    <div class="text"><p>Kann als nächstes wieder vollständig ergänzt werden.</p></div>
   </section>
 </main>
 
-<!-- ═══════════ TAB: VERLAUF ═══════════ -->
+<!-- TAB: VERLAUF -->
 <main id="tab-verlauf" class="pane" role="tabpanel" hidden>
   <section class="card">
-    <div class="card__title">Letzte Messungen (lokal gespeichert)</div>
+    <div class="card__title">Letzte Messungen (lokal)</div>
     <div id="historyList" class="historyList"></div>
-    <div class="hint">Neueste oben · Speicherung offline im Browser · max. 30 Einträge</div>
-  </section>
-
-  <section class="card" id="historyDetailCard" hidden>
-    <div class="card__title">Detail-Ansicht + Zeit-Tiefen-Diagramm</div>
-    <canvas id="historyChart" height="320"></canvas>
-    <div id="historyMeta" class="text" style="margin-top:12px"></div>
-    <div class="table-wrap" style="margin-top:10px">
-      <table class="bem-table">
-        <thead>
-          <tr>
-            <th>Eindring-tiefe [m]</th>
-            <th>Zeit [sec]</th>
-            <th>Rd [kN]</th>
-            <th>Anmerkung</th>
-          </tr>
-        </thead>
-        <tbody id="historyTableBody"></tbody>
-      </table>
-    </div>
+    <div class="hint">Neueste oben · lokal/offline gespeichert</div>
   </section>
 </main>
 
