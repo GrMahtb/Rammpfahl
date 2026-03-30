@@ -704,7 +704,25 @@ async function exportPdfDownload(optionalSnap = null) {
 
   // Y-Achse (links) einzeichnen
   page.drawLine({ start: { x: innerL, y: chartBottom }, end: { x: innerL, y: chartTop }, thickness: 0.9, color: black });
+// ===== Y-Achse: Tick + Beschriftung je Meter (0-1m, 1-2m, ...) wie Vorlage [10]
+const yMid = yBot + dataRowH / 2;
 
+// kurzer Tick an der Y-Achse
+page.drawLine({
+  start: { x: innerL, y: yMid },
+  end:   { x: innerL + mm(1.6), y: yMid },
+  thickness: 0.7,
+  color: black
+});
+
+// Text links von der Y-Achse (zwischen Trennlinie und Achse)
+page.drawText(depthLabel(i), {
+  x: chartX0 + mm(2),
+  y: yMid - mm(1.3),
+  size: 7.6,
+  font: fontReg,
+  color: black
+});
   // Achsenbeschriftung
   page.drawText('Zeit [sec]', { x: innerR - mm(18), y: chartBottom + mm(2.2), size: 9, font: fontBold, color: black });
   page.drawText('Eindringtiefe [m]', {
@@ -814,8 +832,8 @@ async function exportPdfDownload(optionalSnap = null) {
   
   // Dateiname: Datum_Rammpfahl-Protokoll_Nr (pfahlnummer).pdf
   const dateStr = formatDateDE_TTMMJJJJ(meta.datum || new Date());
-  const nrStr = meta.pfahlNr || 'X';
-  const name = `${dateStr}_Rammpfahl-Protokoll_Nr ${nrStr}.pdf`;
+const nrStr = meta.pfahlNr || 'X';
+const name = `${dateTag(new Date())}_Rammpfahl-Protokoll_Nr ${nrStr}.pdf`;
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
