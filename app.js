@@ -468,6 +468,64 @@ function timerToggle() {
   else timerStart();
 }
 
+function formatDateDE_TTMMJJJJ(isoOrAny) {
+  // erwartet meist "YYYY-MM-DD" aus <input type="date">
+  const s = String(isoOrAny || '').trim();
+  if (!s) return '';
+  // schon TT.MM.JJJJ?
+  if (/^\d{2}\.\d{2}\.\d{4}$/.test(s)) return s;
+  // ISO?
+  const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (m) return `${m[3]}.${m[2]}.${m[1]}`;
+  // Fallback: versuche Date.parse
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) {
+    const dd = String(d.getDate()).padStart(2, '0');
+    const mm = String(d.getMonth() + 1).padStart(2, '0');
+    const yyyy = String(d.getFullYear());
+    return `${dd}.${mm}.${yyyy}`;
+  }
+  return s;
+}
+
+function textWidth(font, size, text) {
+  try { return font.widthOfTextAtSize(String(text || ''), size); }
+  catch { return 999999; }
+}
+
+function drawTextFit(page, text, x, y, maxWidth, font, size, color) {
+  let s = size;
+  const min = 6;
+  const t = String(text ?? '');
+  while (s > min && textWidth(font, s, t) > maxWidth) s -= 0.25;
+  page.drawText(t, { x, y, size: s, font, color });
+  return s;
+}
+
+function wrapLines(text, font, size, maxWidth) {
+  const words = String(text ?? '').split(/\s+/).filter(Boolean);
+  const lines = [];
+  let cur = '';
+  for (const w of words) {
+    const test = cur ? (cur + ' ' + w) : w;
+    if (textWidth(font, size, test) <= maxWidth) cur = test;
+    else {
+      if (cur) lines.push(cur);
+      cur = w;
+    }
+  }
+  if (cur) lines.push(cur);
+  return lines;
+}
+
+function drawTextWrap(page, text, x, yTop, maxWidth, font, size, lineHeight, color, maxLines = 2) {
+  const lines = wrapLines(text, font, size, maxWidth).slice(0, maxLines);
+  lines.forEach((ln, i) => {
+    page.drawText(ln, { x, y: yTop - i * lineHeight, size, font, color });
+  });
+  return lines.length;
+}
+
 // -------------------- PDF EXPORT (Download, Arial, Layout wie Vorlage) --------------------
 async function exportPdfDownload(optionalSnap = null) {
   const snap = optionalSnap || collectFormState();
@@ -478,7 +536,7 @@ async function exportPdfDownload(optionalSnap = null) {
     return;
   }
 
-  const { PDFDocument, rgb } = window.PDFLib;
+  const { PDFDocument, rgb, degrees } = window.PDFLib;
 
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(window.fontkit);
@@ -509,20 +567,21 @@ async function exportPdfDownload(optionalSnap = null) {
 
   const page = pdf.addPage([595.28, 841.89]); // A4
   const mm = (v) => v * 72 / 25.4;
+  const black = rgb(0, 0, 0);
 
   const margin = mm(10);
   const x0 = margin, y0 = margin;
   const W = 595.28 - 2 * margin;
   const H = 841.89 - 2 * margin;
 
-  // Outer border
-  page.drawRectangle({ x: x0, y: y0, width: W, height: H, borderColor: rgb(0,0,0), borderWidth: 1.5 });
+  // Rahmen
+  page.drawRectangle({ x: x0, y: y0, width: W, height: H, borderColor: black, borderWidth: 1.5 });
 
-  // Grey header band + title like template [9][10]
+  // Kopfband grau + Titel (gewünscht)
   const headerH = mm(10);
   page.drawRectangle({
     x: x0, y: y0 + H - headerH, width: W, height: headerH,
-    color: rgb(0.88, 0.88, 0.88), borderColor: rgb(0,0,0), borderWidth: 1
+    color: rgb(0.88, 0.88, 0.88), borderColor: black, borderWidth: 1
   });
 
   if (logoImg) {
@@ -536,59 +595,72 @@ async function exportPdfDownload(optionalSnap = null) {
     });
   }
 
-  page.drawText('RAMMPFAHL-PROTOKOLL RDS SPEZIAL TIEFBAU', {
+  // Kopfzeile Text: "Rammpfahl-Protokoll"
+  page.drawText('Rammpfahl-Protokoll', {
     x: x0 + mm(33),
     y: y0 + H - headerH + mm(2.6),
-    size: 11,
+    size: 12,
     font: fontBold,
-    color: rgb(0,0,0)
+    color: black
   });
 
   const drawHLine = (y, thick = 1) =>
-    page.drawLine({ start: { x: x0, y }, end: { x: x0 + W, y }, thickness: thick, color: rgb(0,0,0) });
+    page.drawLine({ start: { x: x0, y }, end: { x: x0 + W, y }, thickness: thick, color: black });
 
-  // Meta block like template [9][10]
+  // Meta-Block (2 Spalten)
   const rowH = mm(8);
   let cy = y0 + H - headerH - rowH;
   const midX = x0 + W * 0.5;
 
   function metaRow(l1, v1, l2, v2) {
     drawHLine(cy, 1);
+    page.drawLine({ start: { x: midX, y: cy }, end: { x: midX, y: cy + rowH }, thickness: 1, color: black });
 
-    page.drawLine({ start: { x: midX, y: cy }, end: { x: midX, y: cy + rowH }, thickness: 1, color: rgb(0,0,0) });
+    page.drawText(l1, { x: x0 + mm(2), y: cy + mm(2.2), size: 10, font: fontBold, color: black });
 
-    page.drawText(l1, { x: x0 + mm(2), y: cy + mm(2.2), size: 10, font: fontBold, color: rgb(0,0,0) });
-    page.drawText(String(v1 || ''), { x: x0 + mm(32), y: cy + mm(2.2), size: 10, font: fontReg, color: rgb(0,0,0) });
+    // linkes Value-Feld: fit in linke Hälfte
+    const leftValX = x0 + mm(32);
+    const leftMaxW = (midX - mm(2)) - leftValX;
+    drawTextFit(page, String(v1 || ''), leftValX, cy + mm(2.2), leftMaxW, fontReg, 10, black);
 
-    page.drawText(l2, { x: midX + mm(2), y: cy + mm(2.2), size: 10, font: fontBold, color: rgb(0,0,0) });
-    page.drawText(String(v2 || ''), { x: midX + mm(45), y: cy + mm(2.2), size: 10, font: fontReg, color: rgb(0,0,0) });
+    page.drawText(l2, { x: midX + mm(2), y: cy + mm(2.2), size: 10, font: fontBold, color: black });
+
+    // rechtes Value-Feld: fit in rechte Hälfte
+    const rightValX = midX + mm(45);
+    const rightMaxW = (x0 + W - mm(2)) - rightValX;
+    drawTextFit(page, String(v2 || ''), rightValX, cy + mm(2.2), rightMaxW, fontReg, 10, black);
 
     cy -= rowH;
   }
 
   drawHLine(y0 + H - headerH, 1);
 
-  metaRow('Datum:', meta.datum, 'Kostenstelle:', meta.kostenstelle);
+  // Datum: TT.MM.JJJJ (gewünscht)
+  const dateDE = formatDateDE_TTMMJJJJ(meta.datum || '');
+  metaRow('Datum:', dateDE, 'Kostenstelle:', meta.kostenstelle);
   metaRow('Projekt:', meta.projekt, 'Auftraggeber:', meta.auftraggeber);
   metaRow('Trägergerät:', meta.traeger || 'SK 270', 'Pfahlnummer:', meta.pfahlNr);
   metaRow('Hyd-hammer:', meta.hammer || 'Wimmer WH26', 'Pfahl-Bemessungslast [kN] :', meta.ed ? fmtComma(Number(meta.ed), 2) : '');
-  metaRow('Pfahlyp:', meta.pfahltyp, `ø${Number(meta.schuh || 220)}mm`, `Bodenart: ${meta.bodenart || ''}`);
 
-  // Table + chart area like template [10]
+  // Pfahltyp + Ø in einer Zelle (gewünscht): "118×7,5mm Ø220mm"
+  const pfahlPretty = String(meta.pfahltyp || '').replace(/x/gi, '×');
+  const pfahlMitD = `${pfahlPretty} Ø${Number(meta.schuh || 220)}mm`;
+  metaRow('Pfahltyp:', pfahlMitD, 'Bodenart:', meta.bodenart || '');
+
+  // ---------------- Tabelle + Diagramm ----------------
   const tableTop = cy + rowH;
   const tableBottom = y0 + mm(28);
   const tH = tableTop - tableBottom;
 
-  // chart roughly half width A4
   const leftW = W * 0.52;
   const rightW = W - leftW;
   const th = mm(7);
 
-  // header backgrounds
-  page.drawRectangle({ x: x0, y: tableTop - th, width: leftW, height: th, color: rgb(0.93,0.93,0.93), borderColor: rgb(0,0,0), borderWidth: 1 });
-  page.drawRectangle({ x: x0 + leftW, y: tableTop - th, width: rightW, height: th, color: rgb(0.93,0.93,0.93), borderColor: rgb(0,0,0), borderWidth: 1 });
+  // Header-Hintergründe
+  page.drawRectangle({ x: x0, y: tableTop - th, width: leftW, height: th, color: rgb(0.93,0.93,0.93), borderColor: black, borderWidth: 1 });
+  page.drawRectangle({ x: x0 + leftW, y: tableTop - th, width: rightW, height: th, color: rgb(0.93,0.93,0.93), borderColor: black, borderWidth: 1 });
 
-  // left columns: depth / time / rd / note
+  // Spalten links
   const c1 = leftW * 0.23;
   const c2 = leftW * 0.16;
   const c3 = leftW * 0.16;
@@ -597,40 +669,58 @@ async function exportPdfDownload(optionalSnap = null) {
   const xC3 = xC2 + c3;
 
   [xC1, xC2, xC3].forEach((xx) => {
-    page.drawLine({ start: { x: xx, y: tableBottom }, end: { x: xx, y: tableTop }, thickness: 1, color: rgb(0,0,0) });
+    page.drawLine({ start: { x: xx, y: tableBottom }, end: { x: xx, y: tableTop }, thickness: 1, color: black });
   });
 
+  // Trennlinie Tabelle/Diagramm (wie Vorlage)
   const chartX0 = x0 + leftW;
-  page.drawLine({ start: { x: chartX0, y: tableBottom }, end: { x: chartX0, y: tableTop }, thickness: 1, color: rgb(0,0,0) });
+  page.drawLine({ start: { x: chartX0, y: tableBottom }, end: { x: chartX0, y: tableTop }, thickness: 1, color: black });
 
-  // header texts
-  page.drawText('Eindring-\ntiefe[m]', { x: x0 + mm(1.5), y: tableTop - th + mm(1.3), size: 9, font: fontBold, color: rgb(0,0,0), lineHeight: 11 });
-  page.drawText('Zeit [sec]', { x: xC1 + mm(1.5), y: tableTop - th + mm(2.5), size: 9, font: fontBold, color: rgb(0,0,0) });
-  page.drawText('Rd [kN]', { x: xC2 + mm(1.5), y: tableTop - th + mm(2.5), size: 9, font: fontBold, color: rgb(0,0,0) });
-  page.drawText('Anmerkung', { x: xC3 + mm(1.5), y: tableTop - th + mm(2.5), size: 9, font: fontBold, color: rgb(0,0,0) });
+  // Tabellen-Header: innerhalb der Zelle (kein Überlauf) [11]
+  // Statt "Eindring-\ntiefe[m]" -> "Eindringtiefe [m]" (passt besser)
+  page.drawText('Eindringtiefe [m]', { x: x0 + mm(1.5), y: tableTop - th + mm(2.2), size: 8.8, font: fontBold, color: black });
+  page.drawText('Zeit [sec]',       { x: xC1 + mm(1.5), y: tableTop - th + mm(2.2), size: 9,   font: fontBold, color: black });
+  page.drawText('Rd [kN]',          { x: xC2 + mm(1.5), y: tableTop - th + mm(2.2), size: 9,   font: fontBold, color: black });
+  page.drawText('Anmerkung',        { x: xC3 + mm(1.5), y: tableTop - th + mm(2.2), size: 9,   font: fontBold, color: black });
 
-  page.drawText('Eindringtiefe [m]', { x: chartX0 + mm(2), y: tableTop - th + mm(2.5), size: 9, font: fontBold, color: rgb(0,0,0) });
-  page.drawText('Zeit [sec]', { x: chartX0 + rightW - mm(22), y: tableTop - th + mm(2.5), size: 9, font: fontBold, color: rgb(0,0,0) });
+  // Diagramm: Achsenbeschriftung X/Y (gewünscht) [10]
+  page.drawText('Zeit [sec]', { x: chartX0 + rightW - mm(22), y: tableBottom + mm(2), size: 9, font: fontBold, color: black });
+  // Y-Achse (gedreht)
+  page.drawText('Eindringtiefe [m]', {
+    x: chartX0 + mm(4),
+    y: tableBottom + mm(2),
+    size: 9,
+    font: fontBold,
+    color: black,
+    rotate: degrees(90)
+  });
 
-  // Chart auto scale
+  // Chart-Skala auto
   const times = (snap.times || []).slice(0, 25).map(v => Number(v || 0));
   const maxT = Math.max(0, ...times);
   const scale = niceTicks(maxT, 4);
   const xMax = Math.max(1, scale.max);
 
-  const innerL = chartX0 + mm(26);
+  const innerL = chartX0 + mm(18);
   const innerR = chartX0 + rightW - mm(4);
   const innerW = innerR - innerL;
   const chartX = (v) => innerL + (Math.max(0, Math.min(xMax, v)) / xMax) * innerW;
 
-  // Tick labels + grid lines
+  const chartTop = tableTop - th;       // direkt unter Headerzeile
+  const chartBottom = tableBottom;
+
+  // Diagramm: keine durchgängigen Rahmenlinien -> nur Achsenlinie + kurze Tickmarks [10]
+  // X-Achse oben als Achsenlinie
+  page.drawLine({ start: { x: innerL, y: chartTop }, end: { x: innerR, y: chartTop }, thickness: 0.8, color: black });
+
+  // Tick-Labels oben + kurze Tickmarks (nicht über die ganze Höhe)
   scale.ticks.forEach((t) => {
-    page.drawText(String(t), { x: chartX(t) - mm(2), y: tableTop - th + mm(2), size: 8, font: fontReg, color: rgb(0,0,0) });
     const gx = chartX(t);
-    page.drawLine({ start: { x: gx, y: tableBottom }, end: { x: gx, y: tableTop - th }, thickness: 0.5, color: rgb(0.75,0.75,0.75) });
+    page.drawText(String(t), { x: gx - mm(2), y: tableTop - th + mm(2.1), size: 8, font: fontReg, color: black });
+    page.drawLine({ start: { x: gx, y: chartTop }, end: { x: gx, y: chartTop - mm(2.2) }, thickness: 0.8, color: black });
   });
 
-  // Rows
+  // Zeilen
   const dataRowH = (tH - th - mm(12)) / (25 + 2);
   let yRowTop = tableTop - th;
 
@@ -644,8 +734,8 @@ async function exportPdfDownload(optionalSnap = null) {
   for (let i = 0; i < 25; i++) {
     const yBot = yRowTop - dataRowH;
 
-    // row line
-    page.drawLine({ start: { x: x0, y: yBot }, end: { x: x0 + W, y: yBot }, thickness: 1, color: rgb(0,0,0) });
+    // WICHTIG: Zeilenlinie nur über Tabellenbereich, NICHT durchs Diagramm (gewünscht)
+    page.drawLine({ start: { x: x0, y: yBot }, end: { x: x0 + leftW, y: yBot }, thickness: 1, color: black });
 
     const t = Number(snap.times?.[i] || 0);
     const note = String(snap.notes?.[i] || '');
@@ -654,13 +744,13 @@ async function exportPdfDownload(optionalSnap = null) {
     const rd = rdFromSec(t, bodenart, schuhMm, includeK);
     sumRd += rd;
 
-    // table text
-    page.drawText(depthLabel(i), { x: x0 + mm(1.5), y: yBot + mm(1.5), size: 9.5, font: fontReg, color: rgb(0,0,0) });
-    if (t > 0) page.drawText(String(t), { x: xC1 + mm(1.5), y: yBot + mm(1.5), size: 9.5, font: fontReg, color: rgb(0,0,0) });
-    page.drawText(fmtComma(rd, 2), { x: xC2 + mm(1.5), y: yBot + mm(1.5), size: 9.5, font: fontReg, color: rgb(0,0,0) });
-    if (note) page.drawText(note.slice(0, 32), { x: xC3 + mm(1.5), y: yBot + mm(1.5), size: 9, font: fontReg, color: rgb(0,0,0) });
+    // Tabelle links
+    page.drawText(depthLabel(i), { x: x0 + mm(1.5), y: yBot + mm(1.5), size: 9.5, font: fontReg, color: black });
+    if (t > 0) page.drawText(String(t), { x: xC1 + mm(1.5), y: yBot + mm(1.5), size: 9.5, font: fontReg, color: black });
+    page.drawText(fmtComma(rd, 2), { x: xC2 + mm(1.5), y: yBot + mm(1.5), size: 9.5, font: fontReg, color: black });
+    if (note) drawTextFit(page, note, xC3 + mm(1.5), yBot + mm(1.5), (x0 + leftW - mm(2)) - (xC3 + mm(1.5)), fontReg, 9, black);
 
-    // bar in chart
+    // Balken im Diagramm
     if (t > 0) {
       const barH = dataRowH * 0.60;
       const barY = yBot + (dataRowH - barH) / 2;
@@ -669,27 +759,28 @@ async function exportPdfDownload(optionalSnap = null) {
         y: barY,
         width: Math.max(0.5, chartX(t) - chartX(0)),
         height: barH,
-        color: rgb(1, 0.929, 0) // HTB Gelb
+        color: rgb(1, 0.929, 0)
       });
     }
 
     yRowTop = yBot;
   }
 
-  // Footer row 1: Gesamtzeit + Ed (Position wie Beispiel) [10]
+  // Footer: Linie nur über Tabelle links (kein "Rahmen" durchs Diagramm)
   const fy1 = yRowTop - dataRowH;
-  page.drawLine({ start: { x: x0, y: fy1 }, end: { x: x0 + W, y: fy1 }, thickness: 1, color: rgb(0,0,0) });
+  page.drawLine({ start: { x: x0, y: fy1 }, end: { x: x0 + leftW, y: fy1 }, thickness: 1, color: black });
 
-  page.drawText('Gesamtzeit:', { x: x0 + mm(1.5), y: fy1 + mm(1.5), size: 10, font: fontBold, color: rgb(0,0,0) });
-  page.drawText(String(sumTime), { x: xC1 + mm(1.5), y: fy1 + mm(1.5), size: 10, font: fontReg, color: rgb(0,0,0) });
-  if (meta.ed) page.drawText(fmtComma(Number(meta.ed), 2), { x: xC3 + mm(1.5), y: fy1 + mm(1.5), size: 10, font: fontReg, color: rgb(0,0,0) });
+  page.drawText('Gesamtzeit:', { x: x0 + mm(1.5), y: fy1 + mm(1.5), size: 10, font: fontBold, color: black });
+  page.drawText(String(sumTime), { x: xC1 + mm(1.5), y: fy1 + mm(1.5), size: 10, font: fontReg, color: black });
+  if (meta.ed) page.drawText(fmtComma(Number(meta.ed), 2), { x: xC3 + mm(1.5), y: fy1 + mm(1.5), size: 10, font: fontReg, color: black });
 
-  // Footer row 2: ΣRd + Status [10]
   const fy2 = fy1 - dataRowH;
-  page.drawLine({ start: { x: x0, y: fy2 }, end: { x: x0 + W, y: fy2 }, thickness: 1, color: rgb(0,0,0) });
+  page.drawLine({ start: { x: x0, y: fy2 }, end: { x: x0 + leftW, y: fy2 }, thickness: 1, color: black });
 
-  page.drawText('Σ Pfahlwiderstand Rd', { x: x0 + mm(1.5), y: fy2 + mm(1.5), size: 10, font: fontBold, color: rgb(0,0,0) });
-  page.drawText(fmtComma(sumRd, 2), { x: xC1 + mm(1.5), y: fy2 + mm(1.5), size: 10, font: fontReg, color: rgb(0,0,0) });
+  // Σ Pfahlwiderstand: umbrechen, damit es lesbar bleibt [11]
+  drawTextWrap(page, 'Σ Pfahlwiderstand Rd', x0 + mm(1.5), fy2 + mm(4.5), (xC1 - mm(2)) - (x0 + mm(1.5)), fontBold, 9.5, 10, black, 2);
+
+  page.drawText(fmtComma(sumRd, 2), { x: xC1 + mm(1.5), y: fy2 + mm(1.5), size: 10, font: fontReg, color: black });
 
   const edNum = Number(meta.ed || 0);
   const ok = sumRd >= edNum;
@@ -701,15 +792,15 @@ async function exportPdfDownload(optionalSnap = null) {
     color: ok ? rgb(0, 0.5, 0) : rgb(0.8, 0, 0)
   });
 
-  // Signature area like template [9][10]
+  // Signaturbereich (wie Vorlage) [9][10]
   const signTop = y0 + mm(22);
-  page.drawLine({ start: { x: x0, y: signTop }, end: { x: x0 + W, y: signTop }, thickness: 1, color: rgb(0,0,0) });
-  page.drawLine({ start: { x: x0 + W / 2, y: y0 }, end: { x: x0 + W / 2, y: signTop }, thickness: 1, color: rgb(0,0,0) });
+  page.drawLine({ start: { x: x0, y: signTop }, end: { x: x0 + W, y: signTop }, thickness: 1, color: black });
+  page.drawLine({ start: { x: x0 + W / 2, y: y0 }, end: { x: x0 + W / 2, y: signTop }, thickness: 1, color: black });
 
-  page.drawText('AN ( Datum; Unterschrift)', { x: x0 + mm(2), y: y0 + mm(6), size: 10, font: fontReg, color: rgb(0,0,0) });
-  page.drawText('AG/ ÖBA (Datum; Unterschrift)', { x: x0 + W / 2 + mm(2), y: y0 + mm(6), size: 10, font: fontReg, color: rgb(0,0,0) });
+  page.drawText('AN ( Datum; Unterschrift)', { x: x0 + mm(2), y: y0 + mm(6), size: 10, font: fontReg, color: black });
+  page.drawText('AG/ ÖBA (Datum; Unterschrift)', { x: x0 + W / 2 + mm(2), y: y0 + mm(6), size: 10, font: fontReg, color: black });
 
-  // Download name = TTMMJJJJ.pdf
+  // Download
   const bytes = await pdf.save();
   const blob = new Blob([bytes], { type: 'application/pdf' });
   const name = `${dateTag(new Date())}.pdf`;
@@ -721,7 +812,6 @@ async function exportPdfDownload(optionalSnap = null) {
   a.click();
   URL.revokeObjectURL(url);
 }
-
 // -------------------- EVENTS --------------------
 function hookEvents() {
   // meta inputs autosave + recalc
