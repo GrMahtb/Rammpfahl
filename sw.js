@@ -1,4 +1,4 @@
-const CACHE = 'htb-rammpfahl-v11';
+const CACHE = 'htb-rammpfahl-v20';
 const ASSETS = [
   './', './index.html', './styles.css', './app.js',
   './manifest.json', './icon.svg',
