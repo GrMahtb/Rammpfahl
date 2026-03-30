@@ -423,22 +423,51 @@ function initTimerControls() {
 /* ===================== EVENTS (Meta) ===================== */
 function hookMetaAutosave() {
   [
-    'inp-datum','inp-pfahl-nr','inp-projekt','inp-kostenstelle','inp-auftraggeber',
-    'inp-traeger','inp-hammer','inp-pfahltyp','inp-schuh','inp-bodenart','inp-ed'
+    'inp-datum',
+    'inp-pfahl-nr',
+    'inp-projekt',
+    'inp-kostenstelle',
+    'inp-auftraggeber',
+    'inp-traeger',
+    'inp-hammer',
+    'inp-pfahltyp',
+    'inp-schuh',
+    'inp-bodenart',
+    'inp-ed'
   ].forEach(id => {
     $(id)?.addEventListener('input', () => { recalc(); saveDebounced(); });
     $(id)?.addEventListener('change', () => { recalc(); saveDebounced(); });
-     $('btnReset')?.addEventListener('click', () => {
-    timeInputs.forEach(inp => inp.value = '');
-    noteInputs.forEach(inp => inp.value = ''); // NEU
-    $('timeLive').value = '0 s';
-    state.timer.selectedIdx = 0;
-    $('meterSelect').value = '0';
+  });
+
+  // Pfahltyp -> Schuh-Ø aus value "|...|...|220"
+  $('inp-pfahltyp')?.addEventListener('change', () => {
+    const v = $('inp-pfahltyp').value || '';
+    const parts = v.split('|');
+    if (parts[2]) $('inp-schuh').value = parts[2];
     recalc();
     saveDebounced();
   });
-  });
 
+  // PDF Export (Vorlagenlayout)
+  $('btnPdf')?.addEventListener('click', exportPDF_likeTemplate);
+
+  // Reset: Zeiten + Anmerkungen löschen + Timer zurücksetzen
+  $('btnReset')?.addEventListener('click', () => {
+    timeInputs.forEach(inp => inp.value = '');
+    noteInputs.forEach(inp => inp.value = ''); // Anmerkungen
+
+    const live = $('timeLive');
+    if (live) live.value = '0 s';
+
+    state.timer.selectedIdx = 0;
+
+    const sel = $('meterSelect');
+    if (sel) sel.value = '0';
+
+    recalc();
+    saveDebounced();
+  });
+}
   // Pfahltyp -> Schuh-Ø aus value "|...|...|220"
   $('inp-pfahltyp')?.addEventListener('change', () => {
     const v = $('inp-pfahltyp').value || '';
