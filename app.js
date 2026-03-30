@@ -665,22 +665,28 @@ async function exportPdf(optSnap = null) {
   page.drawText('AG/ ÖBA (Datum; Unterschrift)',  { x:x0+W/2+mm(2), y:y0+mm(6), size:10, font:fReg, color:K });
 
   // ─── Download / Share ─────────────────────────
+   // ─── PDF im neuen Tab anzeigen ─────────────────────────
   const bytes = await pdf.save();
-  const blob  = new Blob([bytes], { type:'application/pdf' });
+  const blob  = new Blob([bytes], { type: 'application/pdf' });
+  const url   = URL.createObjectURL(blob);
 
-  const d = meta.datum ? new Date(meta.datum) : new Date();
-  const name = `${dateTag(d)}_Rammpfahl-Protokoll_Nr ${meta.pfahlNr || 'X'}.pdf`;
-
-  // iOS: Share Sheet (funktioniert in Chrome & Safari ab iOS 15+)
-  try {
-    const file = new File([blob], name, { type:'application/pdf' });
-    if (navigator.canShare && navigator.canShare({ files:[file] })) {
-      await navigator.share({ files:[file], title:name });
-      return;
-    }
-  } catch (e) {
-    if (e?.name !== 'AbortError') console.warn('share failed', e);
+  // PDF in neuem Tab öffnen (Browser PDF-Viewer)
+  const w = window.open(url, '_blank');
+  
+  if (!w) {
+    alert('Bitte Popups zulassen, um das PDF anzuzeigen!');
+    // Fallback, falls Popups streng blockiert sind: klassischer Download
+    const d = meta.datum ? new Date(meta.datum) : new Date();
+    const name = `${dateTag(d)}_Rammpfahl-Protokoll_Nr ${meta.pfahlNr || 'X'}.pdf`;
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = name;
+    a.click();
   }
+
+  // URL nach 1 Minute freigeben, damit der neue Tab genug Zeit zum Laden hat
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
+}
 
   // Fallback: neuer Tab (iOS: dann Teilen → "In Dateien sichern")
   const url = URL.createObjectURL(blob);
