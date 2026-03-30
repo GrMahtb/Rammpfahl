@@ -70,8 +70,8 @@ function rdPerMeter(secPerM, bodenart, schuhDmMm, includeKlammer) {
 }
 
 /* ===================== DOM/STATE ===================== */
-let timeInputs = []; // 25 inputs
-
+let timeInputs = []; 
+let noteInputs = []; // NEU
 const state = {
   timer: { running: false, startMs: 0, raf: null, selectedIdx: 0 },
   includeKlammer: false
@@ -94,7 +94,8 @@ function collectFormState() {
       ed: $('inp-ed')?.value || ''
     },
     includeKlammer: state.includeKlammer ? 1 : 0,
-    times: DEPTHS.map((_, i) => timeInputs[i]?.value || '')
+    times: DEPTHS.map((_, i) => timeInputs[i]?.value || ''),
+    notes: DEPTHS.map((_, i) => noteInputs[i]?.value || '') // NEU
   };
 }
 
@@ -122,8 +123,13 @@ function applyFormState(s) {
       if (timeInputs[i]) timeInputs[i].value = v;
     });
   }
+  // NEU: Anmerkungen laden
+  if (Array.isArray(s.notes)) {
+    s.notes.slice(0, 25).forEach((v, i) => {
+      if (noteInputs[i]) noteInputs[i].value = v;
+    });
+  }
 }
-
 let saveT = null;
 function saveDebounced() {
   clearTimeout(saveT);
@@ -160,6 +166,7 @@ function buildProtocolTable() {
   const tbody = $('protoBody');
   tbody.innerHTML = '';
   timeInputs = [];
+  noteInputs = []; // NEU
 
   DEPTHS.forEach((d, i) => {
     const tr = document.createElement('tr');
@@ -184,6 +191,16 @@ function buildProtocolTable() {
     tdRd.id = `rd-${i}`;
     tdRd.textContent = '0,00';
     tr.appendChild(tdRd);
+
+    // NEU: Anmerkung-Spalte
+    const tdNote = document.createElement('td');
+    const noteInp = document.createElement('input');
+    noteInp.type = 'text';
+    noteInp.placeholder = 'Anmerkung...';
+    noteInp.addEventListener('input', saveDebounced);
+    noteInputs.push(noteInp);
+    tdNote.appendChild(noteInp);
+    tr.appendChild(tdNote);
 
     tbody.appendChild(tr);
   });
@@ -428,6 +445,15 @@ function hookMetaAutosave() {
   ].forEach(id => {
     $(id)?.addEventListener('input', () => { recalc(); saveDebounced(); });
     $(id)?.addEventListener('change', () => { recalc(); saveDebounced(); });
+     $('btnReset')?.addEventListener('click', () => {
+    timeInputs.forEach(inp => inp.value = '');
+    noteInputs.forEach(inp => inp.value = ''); // NEU
+    $('timeLive').value = '0 s';
+    state.timer.selectedIdx = 0;
+    $('meterSelect').value = '0';
+    recalc();
+    saveDebounced();
+  });
   });
 
   // Pfahltyp -> Schuh-Ø aus value "|...|...|220"
