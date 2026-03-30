@@ -811,7 +811,11 @@ async function exportPdfDownload(optionalSnap = null) {
   // Download
   const bytes = await pdf.save();
   const blob = new Blob([bytes], { type: 'application/pdf' });
-  const name = `${dateTag(new Date())}.pdf`;
+  
+  // Dateiname: Datum_Rammpfahl-Protokoll_Nr (pfahlnummer).pdf
+  const dateStr = formatDateDE_TTMMJJJJ(meta.datum || new Date());
+  const nrStr = meta.pfahlNr || 'X';
+  const name = `${dateStr}_Rammpfahl-Protokoll_Nr ${nrStr}.pdf`;
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
