@@ -36,6 +36,7 @@ const SSAB_PRODUCTS = [
 const $ = id => document.getElementById(id);
 let timeInputs = [];
 let noteInputs = [];
+let sigPads = { an:null, ag:null };
 const state = {
   includeKlammer: false,
   timer: { running: false, startMs: 0, raf: null, selectedIdx: 0 }
@@ -146,6 +147,10 @@ function collectFormState() {
     notes: DEPTHS.map((_,i) => noteInputs[i]?.value || '')
   };
 }
+sign: {
+  an: { date: $('sigAnDate')?.value || '', img: sigPads.an?.getDataURL() || '' },
+  ag: { date: $('sigAgDate')?.value || '', img: sigPads.ag?.getDataURL() || '' }
+}
 
 function applyFormState(s) {
   if (!s?.meta) return;
@@ -172,7 +177,14 @@ function applyFormState(s) {
   const sel = $('meterSelect');
   if (sel) sel.value = String(state.timer.selectedIdx);
 }
+// Signaturen restore
+const anD = s.sign?.an?.date || '';
+const agD = s.sign?.ag?.date || '';
+if ($('sigAnDate')) $('sigAnDate').value = anD || $('inp-datum')?.value || '';
+if ($('sigAgDate')) $('sigAgDate').value = agD || $('inp-datum')?.value || '';
 
+sigPads.an?.setFromDataURL(s.sign?.an?.img || '');
+sigPads.ag?.setFromDataURL(s.sign?.ag?.img || '');
 let _saveT = null;
 function saveDraftDebounced() {
   clearTimeout(_saveT);
@@ -677,7 +689,41 @@ async function exportPdf(optSnap = null) {
   page.drawLine({ start:{x:x0+W/2,y:y0}, end:{x:x0+W/2,y:signTop}, thickness:1, color:K });
   page.drawText('AN ( Datum; Unterschrift)',     { x:x0+mm(2),     y:y0+mm(6), size:10, font:fReg, color:K });
   page.drawText('AG/ ÖBA (Datum; Unterschrift)', { x:x0+W/2+mm(2), y:y0+mm(6), size:10, font:fReg, color:K });
+// --- Signaturbilder in die beiden Felder einbetten ---
+const signTop = y0 + mm(22); // ist bei dir schon vorhanden; falls nicht, nutze die gleiche Variable
 
+const an = snap.sign?.an || {};
+const ag = snap.sign?.ag || {};
+
+// Boxen (oberhalb der Textzeile, innerhalb der Signaturfelder)
+const boxPad = mm(3);
+const boxBottom = y0 + mm(10);        // über der Textzeile
+const boxTop    = signTop - mm(2);    // knapp unter der Trennlinie
+const boxH      = Math.max(mm(5), boxTop - boxBottom);
+
+const leftX  = x0 + boxPad;
+const leftW  = (W/2) - 2*boxPad;
+const rightX = x0 + (W/2) + boxPad;
+const rightW = (W/2) - 2*boxPad;
+
+// Datum in Signaturfeld (klein)
+if (an.date) page.drawText(dateDE(an.date), { x: x0 + mm(2), y: y0 + mm(14), size: 8, font: fReg, color: K });
+if (ag.date) page.drawText(dateDE(ag.date), { x: x0 + W/2 + mm(2), y: y0 + mm(14), size: 8, font: fReg, color: K });
+
+if (an.img) {
+  const u8 = dataURLtoU8(an.img);
+  if (u8) {
+    const png = await pdf.embedPng(u8);
+    page.drawImage(png, { x: leftX, y: boxBottom, width: leftW, height: boxH });
+  }
+}
+if (ag.img) {
+  const u8 = dataURLtoU8(ag.img);
+  if (u8) {
+    const png = await pdf.embedPng(u8);
+    page.drawImage(png, { x: rightX, y: boxBottom, width: rightW, height: boxH });
+  }
+}
   // ─── PDF in neuem Tab öffnen ──────────────────
   const bytes = await pdf.save();
   const blob  = new Blob([bytes], { type: 'application/pdf' });
@@ -728,7 +774,8 @@ function hookEvents() {
     const sel = $('meterSelect'); if (sel) sel.value = '0';
     timerSetBtn(); recalc(); saveDraftDebounced();
   });
-
+sigPads.an?.clear();
+sigPads.ag?.clear();
   $('btnSave')?.addEventListener('click', () => {
     saveCurrentToHistory();
     alert('Messung im Verlauf gespeichert.');
@@ -741,7 +788,142 @@ function hookEvents() {
     });
   });
 }
+function resizeCanvasForHiDPI(canvas){
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(10, Math.floor(rect.width * dpr));
+  const h = Math.max(10, Math.floor(rect.height * dpr));
+  if (canvas.width === w && canvas.height === h) return;
+  canvas.width = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+}
 
+function clearSignature(canvas){
+  const ctx = canvas.getContext('2d');
+  ctx.save();
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.restore();
+  // weißer Hintergrund
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0,0,canvas.getBoundingClientRect().width, canvas.getBoundingClientRect().height);
+}
+
+function dataURLtoU8(dataURL){
+  const b64 = String(dataURL || '').split(',')[1];
+  if (!b64) return null;
+  const bin = atob(b64);
+  const u8 = new Uint8Array(bin.length);
+  for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
+  return u8;
+}
+
+function makeSignaturePad(canvas, onChange){
+  const ctx = canvas.getContext('2d');
+  let drawing = false;
+  let last = null;
+
+  function prep(){
+    resizeCanvasForHiDPI(canvas);
+    // Hintergrund weiß, falls noch leer
+    if (!canvas.dataset.bg) {
+      const r = canvas.getBoundingClientRect();
+      ctx.fillStyle = '#fff';
+      ctx.fillRect(0,0,r.width,r.height);
+      canvas.dataset.bg = '1';
+    }
+    ctx.lineWidth = 2.0;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#000';
+  }
+
+  function posFromEvent(e){
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    e.preventDefault();
+    prep();
+    drawing = true;
+    canvas.setPointerCapture(e.pointerId);
+    last = posFromEvent(e);
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drawing) return;
+    e.preventDefault();
+    const p = posFromEvent(e);
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    last = p;
+  });
+
+  function end(e){
+    if (!drawing) return;
+    e.preventDefault();
+    drawing = false;
+    last = null;
+    onChange?.();
+  }
+
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+  canvas.addEventListener('pointerleave', end);
+
+  return {
+    clear(){
+      prep();
+      clearSignature(canvas);
+      onChange?.();
+    },
+    getDataURL(){
+      // Wenn Canvas nie initialisiert wurde: leer zurückgeben
+      const has = canvas.dataset.bg === '1';
+      if (!has) return '';
+      return canvas.toDataURL('image/png');
+    },
+    setFromDataURL(dataURL){
+      prep();
+      clearSignature(canvas);
+      if (!dataURL) return;
+      const img = new Image();
+      img.onload = () => {
+        const r = canvas.getBoundingClientRect();
+        ctx.drawImage(img, 0, 0, r.width, r.height);
+      };
+      img.src = dataURL;
+      canvas.dataset.bg = '1';
+    }
+  };
+}
+
+function initSignaturePads(){
+  const anCanvas = $('sigAnCanvas');
+  const agCanvas = $('sigAgCanvas');
+  if (!anCanvas || !agCanvas) return;
+
+  sigPads.an = makeSignaturePad(anCanvas, saveDraftDebounced);
+  sigPads.ag = makeSignaturePad(agCanvas, saveDraftDebounced);
+
+  $('sigAnClear')?.addEventListener('click', () => { sigPads.an.clear(); });
+  $('sigAgClear')?.addEventListener('click', () => { sigPads.ag.clear(); });
+
+  // Datum default = Protokoll-Datum
+  const d = $('inp-datum')?.value || new Date().toISOString().slice(0,10);
+  if ($('sigAnDate') && !$('sigAnDate').value) $('sigAnDate').value = d;
+  if ($('sigAgDate') && !$('sigAgDate').value) $('sigAgDate').value = d;
+
+  // bei Resize neu skalieren (ohne Inhalt zu verlieren wäre komplex; wir lassen es stabil über feste Höhe)
+  window.addEventListener('resize', () => {
+    // optional: keine automatische Resize-Aktion, damit Signatur nicht verzerrt.
+  });
+}
 // ─── INIT ─────────────────────────────────────
 window.addEventListener('DOMContentLoaded', () => {
   if ($('inp-datum') && !$('inp-datum').value)
@@ -754,6 +936,7 @@ window.addEventListener('DOMContentLoaded', () => {
   buildBemTable();
   timerSetBtn();
   hookEvents();
+  initSignaturePads();
   loadDraft();
   recalc();
   renderHistoryList();
