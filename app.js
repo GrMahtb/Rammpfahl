@@ -1,18 +1,11 @@
 'use strict';
 
-// ═══════════════════════════════════════════════
-// HTB Rammpfahl-Protokoll – app.js
-// Rd-Klassierung nach Bemessungstabelle [1]
-// PDF-Layout nach Vorlage [9][10]
-// ═══════════════════════════════════════════════
-
 const DEPTHS = Array.from({ length: 25 }, (_, i) => i);
 const STORAGE_DRAFT   = 'htb-rammpfahl-draft-v7';
 const STORAGE_HISTORY = 'htb-rammpfahl-history-v7';
 const HISTORY_MAX     = 30;
 const IS_IOS = /iP(hone|ad|od)/.test(navigator.userAgent);
 
-// Rd/m bei Ø220 aus Bemessungstabelle [1]
 const RD_PER_M_220 = {
   nichtbindig: { gedrueckt:0, s5_10:27.646015, s10_20:55.292031, s20_30:82.938046, gt30:103.672558 },
   bindig:      { gedrueckt:0, s5_10:13.823008, s10_20:27.646015, s20_30:48.380527, gt30:69.115038  }
@@ -32,12 +25,12 @@ const TRM_PRODUCTS = [
 ];
 
 const SSAB_PRODUCTS = [
-  { name:'RR140/8',   grade:'S440J2H', od:139.7, ws:8,    kgm:25.98, preis:23.95 },
-  { name:'RR140/10',  grade:'S440J2H', od:139.7, ws:10,   kgm:31.99, preis:28.85 },
-  { name:'RRs140/8',  grade:'S550J2H', od:139.7, ws:8,    kgm:25.98, preis:0     },
-  { name:'RR170/10',  grade:'S440J2H', od:168.3, ws:10,   kgm:39.04, preis:35.30 },
-  { name:'RR170/12,5',grade:'S440J2H', od:168.3, ws:12.5, kgm:48.03, preis:42.95 },
-  { name:'RR190/10',  grade:'S440J2H', od:190,   ws:10,   kgm:44.39, preis:42.20 },
+  { name:'RR140/8',    grade:'S440J2H', od:139.7, ws:8,    kgm:25.98, preis:23.95 },
+  { name:'RR140/10',   grade:'S440J2H', od:139.7, ws:10,   kgm:31.99, preis:28.85 },
+  { name:'RRs140/8',   grade:'S550J2H', od:139.7, ws:8,    kgm:25.98, preis:0     },
+  { name:'RR170/10',   grade:'S440J2H', od:168.3, ws:10,   kgm:39.04, preis:35.30 },
+  { name:'RR170/12,5', grade:'S440J2H', od:168.3, ws:12.5, kgm:48.03, preis:42.95 },
+  { name:'RR190/10',   grade:'S440J2H', od:190,   ws:10,   kgm:44.39, preis:42.20 },
 ];
 
 const $ = id => document.getElementById(id);
@@ -72,9 +65,9 @@ function dateDE(iso) {
 
 function secClass(sec) {
   if (!sec || sec <= 0) return null;
-  if (sec < 5)  return 'gedrueckt';
-  if (sec < 10) return 's5_10';
-  if (sec < 20) return 's10_20';
+  if (sec < 5)   return 'gedrueckt';
+  if (sec < 10)  return 's5_10';
+  if (sec < 20)  return 's10_20';
   if (sec <= 30) return 's20_30';
   return 'gt30';
 }
@@ -104,7 +97,6 @@ function niceTicks(maxVal, targetSteps = 4) {
   return { max: niceMax, step, ticks };
 }
 
-// pdf-lib helper
 function pdfTextWidth(font, size, text) {
   try { return font.widthOfTextAtSize(String(text), size); }
   catch { return 0; }
@@ -125,7 +117,7 @@ function initTabs() {
         p.classList.toggle('is-active', on);
         p.hidden = !on;
       });
-      if (btn.dataset.tab === 'verlauf')  renderHistoryList();
+      if (btn.dataset.tab === 'verlauf')   renderHistoryList();
       if (btn.dataset.tab === 'bemessung') buildBemTable();
     });
   });
@@ -196,9 +188,9 @@ function loadDraft() {
 }
 
 // ─── HISTORY ──────────────────────────────────
-function readHistory()  { try { return JSON.parse(localStorage.getItem(STORAGE_HISTORY) || '[]'); } catch { return []; } }
-function writeHistory(l){ try { localStorage.setItem(STORAGE_HISTORY, JSON.stringify(l.slice(0, HISTORY_MAX))); } catch {} }
-function uid()          { return crypto?.randomUUID?.() || ('id_' + Date.now() + '_' + Math.random().toString(16).slice(2)); }
+function readHistory()   { try { return JSON.parse(localStorage.getItem(STORAGE_HISTORY) || '[]'); } catch { return []; } }
+function writeHistory(l) { try { localStorage.setItem(STORAGE_HISTORY, JSON.stringify(l.slice(0, HISTORY_MAX))); } catch {} }
+function uid()           { return crypto?.randomUUID?.() || ('id_' + Date.now() + '_' + Math.random().toString(16).slice(2)); }
 
 function sumsFromSnapshot(snap) {
   const bodenart = snap.meta?.bodenart || 'bindig';
@@ -298,7 +290,9 @@ function buildProtocolTable() {
   DEPTHS.forEach((_,i) => {
     const tr = document.createElement('tr');
 
-    const tdD = document.createElement('td'); tdD.textContent = depthLabel(i); tr.appendChild(tdD);
+    const tdD = document.createElement('td');
+    tdD.textContent = depthLabel(i);
+    tr.appendChild(tdD);
 
     const tdT = document.createElement('td');
     const inpT = document.createElement('input');
@@ -306,7 +300,9 @@ function buildProtocolTable() {
     inpT.addEventListener('input', () => { recalc(); saveDraftDebounced(); });
     timeInputs.push(inpT); tdT.appendChild(inpT); tr.appendChild(tdT);
 
-    const tdR = document.createElement('td'); tdR.className = 'rd-cell'; tdR.id = `rd-${i}`; tdR.textContent = '0,00'; tr.appendChild(tdR);
+    const tdR = document.createElement('td');
+    tdR.className = 'rd-cell'; tdR.id = `rd-${i}`; tdR.textContent = '0,00';
+    tr.appendChild(tdR);
 
     const tdN = document.createElement('td');
     const inpN = document.createElement('input'); inpN.type = 'text';
@@ -325,11 +321,11 @@ function buildBemTable() {
   tbody.innerHTML = '';
 
   const rows = [
-    { secm:'gedrückt', label:'sehr locker', qs:0,                                          klammer:false },
-    { secm:'5–10',     label:'locker',       qs:bodenart==='bindig'?20:40,                  klammer:true  },
-    { secm:'10–20',    label:'mitteldicht',  qs:bodenart==='bindig'?40:80,                  klammer:bodenart==='bindig' },
-    { secm:'20–30',    label:'dicht',        qs:bodenart==='bindig'?70:120,                 klammer:false },
-    { secm:'> 30',     label:'sehr dicht',   qs:bodenart==='bindig'?100:150,                klammer:false },
+    { secm:'gedrückt', label:'sehr locker', qs:0,                         klammer:false },
+    { secm:'5–10',     label:'locker',       qs:bodenart==='bindig'?20:40, klammer:true  },
+    { secm:'10–20',    label:'mitteldicht',  qs:bodenart==='bindig'?40:80, klammer:bodenart==='bindig' },
+    { secm:'20–30',    label:'dicht',        qs:bodenart==='bindig'?70:120,klammer:false },
+    { secm:'> 30',     label:'sehr dicht',   qs:bodenart==='bindig'?100:150,klammer:false },
   ];
 
   rows.forEach(row => {
@@ -377,8 +373,8 @@ function recalc() {
     if (el) el.textContent = fmtComma(rd, 2);
   });
 
-  if ($('sumTime'))   $('sumTime').textContent   = String(sumTime);
-  if ($('sumRd'))     $('sumRd').textContent     = fmtComma(sumRd, 2);
+  if ($('sumTime')) $('sumTime').textContent = String(sumTime);
+  if ($('sumRd'))   $('sumRd').textContent   = fmtComma(sumRd, 2);
   const res = $('sumResult');
   if (res) {
     const ok = sumRd >= ed;
@@ -387,7 +383,7 @@ function recalc() {
   }
 }
 
-// ─── TIMER (Toggle) ───────────────────────────
+// ─── TIMER ────────────────────────────────────
 function timerSetBtn() {
   const btn = $('btnTimeToggle');
   if (!btn) return;
@@ -410,7 +406,6 @@ function timerTick() {
 
 function timerToggle() {
   if (state.timer.running) {
-    // STOP
     state.timer.running = false;
     if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
     state.timer.raf = null;
@@ -428,7 +423,6 @@ function timerToggle() {
 
     recalc(); saveDraftDebounced();
   } else {
-    // START
     state.timer.running = true;
     state.timer.startMs = Date.now();
     const el = $('timeLive');
@@ -452,7 +446,6 @@ async function exportPdf(optSnap = null) {
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(window.fontkit);
 
-  // Fonts
   let fReg, fBold;
   try {
     const ab = await fetch('arial.ttf').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
@@ -467,7 +460,6 @@ async function exportPdf(optSnap = null) {
     fBold = await pdf.embedFont(StandardFonts.HelveticaBold);
   }
 
-  // Logo
   let logoImg = null;
   try {
     const lb = await fetch('logo.png').then(r => r.arrayBuffer());
@@ -483,10 +475,8 @@ async function exportPdf(optSnap = null) {
   const W  = 595.28 - 2*margin;
   const H  = 841.89 - 2*margin;
 
-  // Äußerer Rahmen
   page.drawRectangle({ x:x0, y:y0, width:W, height:H, borderColor:K, borderWidth:1.5 });
 
-  // Kopfzeile – höher + fett [9][10]
   const hdrH = mm(14);
   page.drawRectangle({ x:x0, y:y0+H-hdrH, width:W, height:hdrH, color:rgb(.88,.88,.88), borderColor:K, borderWidth:1 });
 
@@ -499,7 +489,6 @@ async function exportPdf(optSnap = null) {
 
   const hLine = (y, t=1) => page.drawLine({ start:{x:x0,y}, end:{x:x0+W,y}, thickness:t, color:K });
 
-  // Meta-Block [9][10]
   const rowH = mm(8);
   let cy = y0 + H - hdrH - rowH;
   const midX = x0 + W * 0.5;
@@ -508,34 +497,30 @@ async function exportPdf(optSnap = null) {
     hLine(cy);
     page.drawLine({ start:{x:midX,y:cy}, end:{x:midX,y:cy+rowH}, thickness:1, color:K });
     page.drawText(l1, { x:x0+mm(2),   y:cy+mm(2.2), size:10, font:fBold, color:K });
-    drawFit(page, v1, x0+mm(32),   cy+mm(2.2), midX-mm(34),   fReg, 10, K);
+    drawFit(page, v1, x0+mm(32),   cy+mm(2.2), midX-mm(34),       fReg, 10, K);
     page.drawText(l2, { x:midX+mm(2), y:cy+mm(2.2), size:10, font:fBold, color:K });
     drawFit(page, v2, midX+mm(55), cy+mm(2.2), x0+W-midX-mm(57), fReg, 10, K);
     cy -= rowH;
   }
 
   hLine(y0+H-hdrH);
-  metaRow('Datum:',       dateDE(meta.datum),                  'Kostenstelle:', meta.kostenstelle || '');
-  metaRow('Projekt:',     meta.projekt || '',                   'Auftraggeber:', meta.auftraggeber || '');
-  metaRow('Trägergerät:', meta.traeger || 'SK 270',             'Pfahlnummer:',  meta.pfahlNr || '');
-  metaRow('Hyd-hammer:',  meta.hammer  || 'Wimmer WH26',        'Pfahl-Bemessungslast [kN] :', meta.ed ? '  '+fmtComma(Number(meta.ed),2) : '');
+  metaRow('Datum:',       dateDE(meta.datum),             'Kostenstelle:', meta.kostenstelle || '');
+  metaRow('Projekt:',     meta.projekt || '',              'Auftraggeber:', meta.auftraggeber || '');
+  metaRow('Trägergerät:', meta.traeger || 'SK 270',        'Pfahlnummer:',  meta.pfahlNr || '');
+  metaRow('Hyd-hammer:',  meta.hammer  || 'Wimmer WH26',  'Pfahl-Bemessungslast [kN] :', meta.ed ? '  '+fmtComma(Number(meta.ed),2) : '');
   const pfahlStr = String(meta.pfahltyp||'').replace(/x/gi,'×') + ` Ø${Number(meta.schuh||220)}mm`;
-  metaRow('Pfahltyp:',    pfahlStr,                             'Bodenart:',     meta.bodenart || '');
+  metaRow('Pfahltyp:',    pfahlStr,                        'Bodenart:',     meta.bodenart || '');
 
-  // ─── Tabelle + Diagramm [10] ─────────────────
   const tableTop    = cy + rowH;
   const tableBottom = y0 + mm(28);
   const tH          = tableTop - tableBottom;
-
   const leftW  = W * 0.52;
   const rightW = W - leftW;
   const thRow  = mm(7);
 
-  // Header-Hintergründe
   page.drawRectangle({ x:x0,       y:tableTop-thRow, width:leftW,  height:thRow, color:rgb(.93,.93,.93), borderColor:K, borderWidth:1 });
   page.drawRectangle({ x:x0+leftW, y:tableTop-thRow, width:rightW, height:thRow, color:rgb(.93,.93,.93), borderColor:K, borderWidth:1 });
 
-  // Spalten: Eindringtiefe breiter (c1=0.30)
   const c1  = leftW * 0.30;
   const c2  = leftW * 0.16;
   const c3  = leftW * 0.16;
@@ -548,13 +533,11 @@ async function exportPdf(optSnap = null) {
   const chartX0 = x0 + leftW;
   page.drawLine({ start:{x:chartX0,y:tableBottom}, end:{x:chartX0,y:tableTop}, thickness:1, color:K });
 
-  // Header-Texte Tabelle
   page.drawText('Eindringtiefe [m]', { x:x0+mm(1.5),  y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
   page.drawText('Zeit [sec]',        { x:xC1+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
   page.drawText('Rd [kN]',           { x:xC2+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
   page.drawText('Anmerkung',         { x:xC3+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
 
-  // Diagramm-Skala (auto)
   const times = (snap.times||[]).slice(0,25).map(v => Number(v||0));
   const maxT  = Math.max(0,...times);
   const scale = niceTicks(maxT, 4);
@@ -568,7 +551,6 @@ async function exportPdf(optSnap = null) {
   const chartTop    = tableTop - thRow;
   const chartBottom = tableBottom;
 
-  // X-Achse (oben) + Ticks + Labels
   page.drawLine({ start:{x:innerL,y:chartTop}, end:{x:innerR,y:chartTop}, thickness:0.9, color:K });
 
   scale.ticks.forEach(t => {
@@ -577,19 +559,15 @@ async function exportPdf(optSnap = null) {
     page.drawLine({ start:{x:gx,y:chartTop}, end:{x:gx,y:chartTop-mm(2)}, thickness:0.8, color:K });
   });
 
-  // X-Achsenbeschriftung
   page.drawText('Zeit [sec]', { x:innerR-mm(18), y:chartBottom+mm(1.5), size:8.5, font:fBold, color:K });
 
-  // Y-Achse
   page.drawLine({ start:{x:innerL,y:chartBottom}, end:{x:innerL,y:chartTop}, thickness:0.9, color:K });
 
-  // Y-Achsenbeschriftung (gedreht)
   page.drawText('Eindringtiefe', {
     x: chartX0 + mm(3.5), y: chartBottom + mm(28),
     size: 8.5, font: fBold, color: K, rotate: degrees(90)
   });
 
-  // Datenzeilen
   const dataRowH = (tH - thRow - mm(12)) / (25 + 2);
   let yRowTop    = tableTop - thRow;
 
@@ -601,7 +579,6 @@ async function exportPdf(optSnap = null) {
   for (let i = 0; i < 25; i++) {
     const yBot = yRowTop - dataRowH;
 
-    // Zeilenlinie nur über Tabellenbereich (nicht durch Diagramm)
     page.drawLine({ start:{x:x0,y:yBot}, end:{x:x0+leftW,y:yBot}, thickness:1, color:K });
 
     const t    = Number(snap.times?.[i] || 0);
@@ -610,18 +587,15 @@ async function exportPdf(optSnap = null) {
     const rd = rdFromSec(t, bodenart, schuhMm, includeK);
     sumRd += rd;
 
-    // Tabelle links
     page.drawText(depthLabel(i), { x:x0+mm(1.5),  y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
     if (t > 0) page.drawText(String(t), { x:xC1+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
-    page.drawText(fmtComma(rd,2),       { x:xC2+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
+    page.drawText(fmtComma(rd,2),        { x:xC2+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
     if (note) drawFit(page, note, xC3+mm(1.5), yBot+mm(1.5), (x0+leftW-mm(2))-(xC3+mm(1.5)), fReg, 9, K);
 
-    // Y-Achse: Tick + Label [10]
     const yMid = yBot + dataRowH / 2;
     page.drawLine({ start:{x:innerL,y:yMid}, end:{x:innerL+mm(1.5),y:yMid}, thickness:0.7, color:K });
     page.drawText(depthLabel(i), { x:chartX0+mm(2), y:yMid-mm(1.2), size:7.5, font:fReg, color:K });
 
-    // Balken: gelb + schwarzer Rahmen
     if (t > 0) {
       const barH = dataRowH * 0.60;
       const barY = yBot + (dataRowH - barH) / 2;
@@ -635,20 +609,15 @@ async function exportPdf(optSnap = null) {
     yRowTop = yBot;
   }
 
-  // Footer Zeile 1: Gesamtzeit
   const fy1 = yRowTop - dataRowH;
   page.drawLine({ start:{x:x0,y:fy1}, end:{x:x0+leftW,y:fy1}, thickness:1, color:K });
-  page.drawText('Gesamtzeit:',  { x:x0+mm(1.5),  y:fy1+mm(1.5), size:10, font:fBold, color:K });
-  page.drawText(String(sumTime),{ x:xC1+mm(1.5), y:fy1+mm(1.5), size:10, font:fReg,  color:K });
+  page.drawText('Gesamtzeit:',   { x:x0+mm(1.5),  y:fy1+mm(1.5), size:10, font:fBold, color:K });
+  page.drawText(String(sumTime), { x:xC1+mm(1.5), y:fy1+mm(1.5), size:10, font:fReg,  color:K });
   if (meta.ed) page.drawText(fmtComma(Number(meta.ed),2), { x:xC3+mm(1.5), y:fy1+mm(1.5), size:10, font:fReg, color:K });
 
-  // Footer Zeile 2: Σ Pfahlwiderstand Rd
   const fy2 = fy1 - dataRowH;
   page.drawLine({ start:{x:x0,y:fy2}, end:{x:x0+leftW,y:fy2}, thickness:1, color:K });
-
-  // "Σ Pfahlwiderstand Rd" passt jetzt in breitere c1-Spalte
   drawFit(page, 'Σ Pfahlwiderstand Rd', x0+mm(1.5), fy2+mm(1.5), c1-mm(3), fBold, 9.5, K);
-
   page.drawText(fmtComma(sumRd,2), { x:xC1+mm(1.5), y:fy2+mm(1.5), size:10, font:fReg, color:K });
 
   const ok = sumRd >= Number(meta.ed || 0);
@@ -657,52 +626,28 @@ async function exportPdf(optSnap = null) {
     color: ok ? rgb(0,0.5,0) : rgb(0.8,0,0)
   });
 
-  // Signaturbereich [9][10]
   const signTop = y0 + mm(22);
   page.drawLine({ start:{x:x0,y:signTop}, end:{x:x0+W,y:signTop}, thickness:1, color:K });
   page.drawLine({ start:{x:x0+W/2,y:y0}, end:{x:x0+W/2,y:signTop}, thickness:1, color:K });
-  page.drawText('AN ( Datum; Unterschrift)',      { x:x0+mm(2),     y:y0+mm(6), size:10, font:fReg, color:K });
-  page.drawText('AG/ ÖBA (Datum; Unterschrift)',  { x:x0+W/2+mm(2), y:y0+mm(6), size:10, font:fReg, color:K });
+  page.drawText('AN ( Datum; Unterschrift)',     { x:x0+mm(2),     y:y0+mm(6), size:10, font:fReg, color:K });
+  page.drawText('AG/ ÖBA (Datum; Unterschrift)', { x:x0+W/2+mm(2), y:y0+mm(6), size:10, font:fReg, color:K });
 
-  // ─── Download / Share ─────────────────────────
-   // ─── PDF im neuen Tab anzeigen ─────────────────────────
+  // ─── PDF in neuem Tab öffnen (kein direkter Download) ─────
   const bytes = await pdf.save();
   const blob  = new Blob([bytes], { type: 'application/pdf' });
   const url   = URL.createObjectURL(blob);
 
-  // PDF in neuem Tab öffnen (Browser PDF-Viewer)
   const w = window.open(url, '_blank');
-  
+
   if (!w) {
-    alert('Bitte Popups zulassen, um das PDF anzuzeigen!');
-    // Fallback, falls Popups streng blockiert sind: klassischer Download
-    const d = meta.datum ? new Date(meta.datum) : new Date();
+    // Popup blockiert → Fallback Download
+    const d    = meta.datum ? new Date(meta.datum) : new Date();
     const name = `${dateTag(d)}_Rammpfahl-Protokoll_Nr ${meta.pfahlNr || 'X'}.pdf`;
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = name;
-    a.click();
-  }
-
-  // URL nach 1 Minute freigeben, damit der neue Tab genug Zeit zum Laden hat
-  setTimeout(() => URL.revokeObjectURL(url), 60000);
-}
-
-  // Fallback: neuer Tab (iOS: dann Teilen → "In Dateien sichern")
-  const url = URL.createObjectURL(blob);
-  if (IS_IOS) {
-    // iOS: neuer Tab öffnen – Nutzer kann über Teilen-Button speichern
-    const w = window.open(url, '_blank');
-    if (!w) { alert('Bitte Popups erlauben, dann nochmals PDF drücken.'); }
-    const hint = $('pdfHint');
-    if (hint) hint.textContent = 'iOS: Im neuen Tab oben auf Teilen (□↑) → „In Dateien sichern"';
-    setTimeout(() => URL.revokeObjectURL(url), 120_000);
-  } else {
-    // Android / Desktop: normaler Download
-    const a = document.createElement('a');
+    const a    = document.createElement('a');
     a.href = url; a.download = name; a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 10_000);
   }
+
+  setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
 // ─── EVENTS ───────────────────────────────────
