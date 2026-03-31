@@ -47,22 +47,18 @@
         <span class="field__label">Datum</span>
         <input id="inp-datum" class="field__input" type="date"/>
       </label>
-
       <label class="field">
         <span class="field__label">Pfahlnummer</span>
         <input id="inp-pfahl-nr" class="field__input" type="number" min="1" value="1"/>
       </label>
-
       <label class="field field--full">
         <span class="field__label">Projekt</span>
         <input id="inp-projekt" class="field__input" type="text"/>
       </label>
-
       <label class="field">
         <span class="field__label">Kostenstelle</span>
         <input id="inp-kostenstelle" class="field__input" type="text"/>
       </label>
-
       <label class="field">
         <span class="field__label">Auftraggeber</span>
         <input id="inp-auftraggeber" class="field__input" type="text"/>
@@ -77,22 +73,18 @@
         <span class="field__label">Trägergerät</span>
         <input id="inp-traeger" class="field__input" type="text" value="SK 270"/>
       </label>
-
       <label class="field">
         <span class="field__label">Hyd-hammer</span>
         <input id="inp-hammer" class="field__input" type="text" value="Wimmer WH26"/>
       </label>
-
       <label class="field field--full">
         <span class="field__label">Pfahltyp</span>
         <input id="inp-pfahltyp" class="field__input" type="text" value="118×7,5mm"/>
       </label>
-
       <label class="field">
         <span class="field__label">Rammschuh-Ø [mm]</span>
         <input id="inp-schuh" class="field__input" type="number" value="220"/>
       </label>
-
       <label class="field">
         <span class="field__label">Bodenart</span>
         <select id="inp-bodenart" class="field__select">
@@ -100,7 +92,6 @@
           <option value="nichtbindig">nicht bindig</option>
         </select>
       </label>
-
       <label class="field">
         <span class="field__label">Pfahl-Bemessungslast Ed [kN]</span>
         <input id="inp-ed" class="field__input" type="number" step="0.01" value="350.60"/>
@@ -115,12 +106,10 @@
         <span class="field__label">Aktueller Meter</span>
         <select id="meterSelect" class="field__select"></select>
       </label>
-
       <label class="field">
         <span class="field__label">Live-Zeit</span>
         <input id="timeLive" class="field__input" type="text" value="0 s" readonly/>
       </label>
-
       <label class="field">
         <span class="field__label">Klammerwerte anrechnen?</span>
         <select id="optIncludeKlammer" class="field__select">
@@ -128,7 +117,6 @@
           <option value="1">Ja</option>
         </select>
       </label>
-
       <div class="field">
         <span class="field__label">&nbsp;</span>
         <button id="btnTimeToggle" class="btn btn--accent" type="button">▶ Start</button>
@@ -175,10 +163,8 @@
       <button id="btnSave"  class="btn btn--accent" type="button">Speichern</button>
       <button id="btnPdf"   class="btn btn--ghost"  type="button">PDF</button>
     </div>
-    <div class="hint" id="pdfHint">PDF wird angezeigt (Popup/Tab). Falls blockiert: Popups erlauben.</div>
   </section>
 
-  <!-- ✅ Unterschriften gehören in den Protokoll-Tab -->
   <section class="card">
     <div class="card__title">Unterschriften</div>
 
@@ -231,7 +217,7 @@
   </section>
 
   <section class="card">
-    <div class="card__title">Bemessungstabelle (Sicherheitsbeiwert 2,0 enthalten) [1]</div>
+    <div class="card__title">Bemessungstabelle</div>
     <div class="table-wrap">
       <table class="bem-table">
         <thead>
@@ -246,7 +232,7 @@
 <!-- ═══ VARIANTEN ═══ -->
 <main id="tab-varianten" class="pane" role="tabpanel" hidden>
   <section class="card">
-    <div class="card__title">Verfügbare TRM-Produkte [1]</div>
+    <div class="card__title">Verfügbare TRM-Produkte</div>
     <div class="table-wrap">
       <table class="bem-table">
         <thead>
@@ -256,9 +242,8 @@
       </table>
     </div>
   </section>
-
   <section class="card">
-    <div class="card__title">Verfügbare SSAB-Produkte [1]</div>
+    <div class="card__title">Verfügbare SSAB-Produkte</div>
     <div class="table-wrap">
       <table class="bem-table">
         <thead>
