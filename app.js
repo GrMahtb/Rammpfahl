@@ -1,13 +1,16 @@
 'use strict';
 
+/* ===================== CONFIG ===================== */
 const DEPTHS = Array.from({ length: 25 }, (_, i) => i);
-const STORAGE_DRAFT   = 'htb-rammpfahl-draft-v8';
-const STORAGE_HISTORY = 'htb-rammpfahl-history-v8';
+
+const STORAGE_DRAFT   = 'htb-rammpfahl-draft-v9';
+const STORAGE_HISTORY = 'htb-rammpfahl-history-v9';
 const HISTORY_MAX     = 30;
 
+// Rd/m bei Ø220 aus Bemessungstabelle [1]
 const RD_PER_M_220 = {
-  nichtbindig: { gedrueckt:0, s5_10:27.646015, s10_20:55.292031, s20_30:82.938046, gt30:103.672558 },
-  bindig:      { gedrueckt:0, s5_10:13.823008, s10_20:27.646015, s20_30:48.380527, gt30:69.115038  }
+  nichtbindig: { gedrueckt:0.0, s5_10:27.646015351590183, s10_20:55.292030703180366, s20_30:82.93804605477055, gt30:103.67255756846319 },
+  bindig:      { gedrueckt:0.0, s5_10:13.823007675795091, s10_20:27.646015351590183, s20_30:48.38052686528282, gt30:69.11503837897546 }
 };
 
 const TRM_PRODUCTS = [
@@ -32,6 +35,7 @@ const SSAB_PRODUCTS = [
   { name:'RR190/10',   grade:'S440J2H', od:190,   ws:10,   kgm:44.39, preis:42.20 },
 ];
 
+/* ===================== DOM / STATE ===================== */
 const $ = (id) => document.getElementById(id);
 
 let timeInputs = [];
@@ -41,12 +45,12 @@ let sigPads = { an: null, ag: null };
 
 const state = {
   includeKlammer: false,
-  timer: { running: false, startMs: 0, raf: null, selectedIdx: 0 }
+  timer: { running:false, startMs:0, raf:null, selectedIdx:0 }
 };
 
-// ───────────────────────────── Helpers
-function fmtComma(n, d = 2) { return Number(n || 0).toFixed(d).replace('.', ','); }
-function depthLabel(i) { return `${i}-${i + 1}m`; }
+/* ===================== HELPERS ===================== */
+function fmtComma(n, d=2) { return Number(n || 0).toFixed(d).replace('.', ','); }
+function depthLabel(i) { return `${i}-${i+1}m`; }
 
 function dateTag(d = new Date()) {
   return String(d.getDate()).padStart(2,'0') +
@@ -60,7 +64,7 @@ function dateDE(iso) {
   const m = s.match(/^(\d{4})-(\d{2})-(\d{2})/);
   if (m) return `${m[3]}.${m[2]}.${m[1]}`;
   const d = new Date(s);
-  if (!isNaN(d)) {
+  if (!isNaN(d.getTime())) {
     return String(d.getDate()).padStart(2,'0') + '.' +
            String(d.getMonth()+1).padStart(2,'0') + '.' + d.getFullYear();
   }
@@ -77,7 +81,7 @@ function secClass(sec) {
 }
 function isKlammerClass(bodenart, cls) {
   if (!cls) return false;
-  if (bodenart === 'nichtbindig') return cls === 's5_10';
+  if (bodenart === 'nichtbindig') return (cls === 's5_10');
   return (cls === 's5_10' || cls === 's10_20'); // bindig
 }
 function rdFromSec(sec, bodenart, schuhMm, includeKlammer) {
@@ -92,41 +96,40 @@ function niceTicks(maxVal, targetSteps = 4) {
   const max = Math.max(0, Number(maxVal) || 0);
   if (max <= 0) return { max: 10, ticks: [0,2,4,6,8,10] };
   const rawStep = max / Math.max(1, targetSteps);
-  const pow10   = Math.pow(10, Math.floor(Math.log10(rawStep)));
-  const err     = rawStep / pow10;
+  const pow10 = Math.pow(10, Math.floor(Math.log10(rawStep)));
+  const err = rawStep / pow10;
   let step = err >= 7.5 ? 10*pow10 : err >= 3.5 ? 5*pow10 : err >= 1.5 ? 2*pow10 : pow10;
   const niceMax = Math.ceil(max / step) * step;
   const ticks = [];
-  for (let t = 0; t <= niceMax + 1e-9; t += step) ticks.push(t);
+  for (let t=0; t<=niceMax+1e-9; t+=step) ticks.push(t);
   return { max: niceMax, step, ticks };
 }
 
-// pdf-lib helpers
+/* ===== pdf-lib helpers ===== */
 function pdfTextWidth(font, size, text) {
-  try { return font.widthOfTextAtSize(String(text), size); }
-  catch { return 0; }
+  try { return font.widthOfTextAtSize(String(text), size); } catch { return 0; }
 }
 function drawFit(page, text, x, y, maxW, font, size, color) {
   let s = size;
-  while (s > 6 && pdfTextWidth(font, s, String(text)) > maxW) s -= 0.25;
-  page.drawText(String(text), { x, y, size: s, font, color });
+  while (s > 6 && pdfTextWidth(font, s, text) > maxW) s -= 0.25;
+  page.drawText(String(text || ''), { x, y, size: s, font, color });
 }
 function dataURLtoU8(dataURL) {
   const b64 = String(dataURL || '').split(',')[1];
   if (!b64) return null;
   const bin = atob(b64);
   const u8 = new Uint8Array(bin.length);
-  for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+  for (let i=0;i<bin.length;i++) u8[i] = bin.charCodeAt(i);
   return u8;
 }
 
-// ───────────────────────────── Tabs
+/* ===================== TABS ===================== */
 function initTabs() {
   document.querySelectorAll('.tab').forEach(btn => {
     btn.addEventListener('click', () => {
       document.querySelectorAll('.tab').forEach(b => b.classList.toggle('is-active', b === btn));
       document.querySelectorAll('.pane').forEach(p => {
-        const on = p.id === `tab-${btn.dataset.tab}`;
+        const on = (p.id === `tab-${btn.dataset.tab}`);
         p.classList.toggle('is-active', on);
         p.hidden = !on;
       });
@@ -136,10 +139,10 @@ function initTabs() {
   });
 }
 
-// ───────────────────────────── Draft save/load (inkl. Sign)
+/* ===================== DRAFT (Autosave) ===================== */
 function collectFormState() {
   return {
-    v: 8,
+    v: 9,
     meta: {
       datum:        $('inp-datum')?.value        || '',
       projekt:      $('inp-projekt')?.value      || '',
@@ -155,17 +158,11 @@ function collectFormState() {
     },
     includeKlammer: state.includeKlammer ? 1 : 0,
     meterIdx: state.timer.selectedIdx || 0,
-    times: DEPTHS.map((_,i) => timeInputs[i]?.value || ''),
-    notes: DEPTHS.map((_,i) => noteInputs[i]?.value || ''),
+    times: DEPTHS.map((_,i)=> timeInputs[i]?.value || ''),
+    notes: DEPTHS.map((_,i)=> noteInputs[i]?.value || ''),
     sign: {
-      an: {
-        date: $('sigAnDate')?.value || '',
-        img:  sigPads.an?.getDataURL?.() || ''
-      },
-      ag: {
-        date: $('sigAgDate')?.value || '',
-        img:  sigPads.ag?.getDataURL?.() || ''
-      }
+      an: { date: $('sigAnDate')?.value || '', img: sigPads.an?.getDataURL?.() || '' },
+      ag: { date: $('sigAgDate')?.value || '', img: sigPads.ag?.getDataURL?.() || '' }
     }
   };
 }
@@ -189,17 +186,15 @@ function applyFormState(s) {
   state.includeKlammer = !!Number(s.includeKlammer || 0);
   $('optIncludeKlammer').value = state.includeKlammer ? '1' : '0';
 
-  (s.times || []).slice(0,25).forEach((v,i) => { if (timeInputs[i]) timeInputs[i].value = v; });
-  (s.notes || []).slice(0,25).forEach((v,i) => { if (noteInputs[i]) noteInputs[i].value = v; });
+  (s.times || []).slice(0,25).forEach((v,i)=> { if (timeInputs[i]) timeInputs[i].value = v; });
+  (s.notes || []).slice(0,25).forEach((v,i)=> { if (noteInputs[i]) noteInputs[i].value = v; });
 
   state.timer.selectedIdx = Number(s.meterIdx || 0);
-  const sel = $('meterSelect');
-  if (sel) sel.value = String(state.timer.selectedIdx);
+  $('meterSelect') && ($('meterSelect').value = String(state.timer.selectedIdx));
 
-  // Sign restore (falls UI vorhanden)
+  // Signaturen restore
   if ($('sigAnDate')) $('sigAnDate').value = s.sign?.an?.date || $('inp-datum')?.value || '';
   if ($('sigAgDate')) $('sigAgDate').value = s.sign?.ag?.date || $('inp-datum')?.value || '';
-
   sigPads.an?.setFromDataURL?.(s.sign?.an?.img || '');
   sigPads.ag?.setFromDataURL?.(s.sign?.ag?.img || '');
 }
@@ -218,7 +213,7 @@ function loadDraft() {
   } catch {}
 }
 
-// ───────────────────────────── History
+/* ===================== HISTORY ===================== */
 function readHistory()   { try { return JSON.parse(localStorage.getItem(STORAGE_HISTORY) || '[]'); } catch { return []; } }
 function writeHistory(l) { try { localStorage.setItem(STORAGE_HISTORY, JSON.stringify(l.slice(0, HISTORY_MAX))); } catch {} }
 function uid()           { return crypto?.randomUUID?.() || ('id_' + Date.now() + '_' + Math.random().toString(16).slice(2)); }
@@ -228,25 +223,21 @@ function sumsFromSnapshot(snap) {
   const schuh    = Number(snap.meta?.schuh || 220);
   const ed       = Number(snap.meta?.ed || 0);
   const includeK = !!Number(snap.includeKlammer || 0);
-  let sumTime = 0, sumRd = 0;
 
+  let sumTime = 0;
+  let sumRd = 0;
   (snap.times || []).slice(0,25).forEach(tv => {
     const t = Number(tv || 0);
     if (t > 0) sumTime += t;
     sumRd += rdFromSec(t, bodenart, schuh, includeK);
   });
-
   return { sumTime, sumRd, ed, ok: sumRd >= ed };
 }
 
 function saveCurrentToHistory() {
   const snap = collectFormState();
   const sums = sumsFromSnapshot(snap);
-  const entry = {
-    id: uid(), savedAt: Date.now(),
-    title: `${snap.meta.projekt || '—'} · Pfahl ${snap.meta.pfahlNr || '—'}`,
-    snap, sums
-  };
+  const entry = { id: uid(), savedAt: Date.now(), title: `${snap.meta.projekt||'—'} · Pfahl ${snap.meta.pfahlNr||'—'}`, snap, sums };
   const list = readHistory();
   list.unshift(entry);
   writeHistory(list);
@@ -257,12 +248,10 @@ function renderHistoryList() {
   const host = $('historyList');
   if (!host) return;
   const list = readHistory();
-
   if (!list.length) {
     host.innerHTML = `<div class="text"><p>Noch keine Messungen gespeichert.</p></div>`;
     return;
   }
-
   host.innerHTML = '';
   list.forEach(entry => {
     const s = entry.sums || sumsFromSnapshot(entry.snap);
@@ -281,8 +270,7 @@ function renderHistoryList() {
         <button class="btn btn--ghost" type="button" data-act="load" data-id="${entry.id}">Laden</button>
         <button class="btn btn--ghost" type="button" data-act="pdf"  data-id="${entry.id}">PDF</button>
         <button class="btn btn--ghost" type="button" data-act="del"  data-id="${entry.id}">Löschen</button>
-      </div>
-    `;
+      </div>`;
     host.appendChild(div);
   });
 
@@ -309,12 +297,12 @@ function renderHistoryList() {
   });
 }
 
-// ───────────────────────────── UI table
+/* ===================== UI BUILD ===================== */
 function buildMeterSelect() {
   const sel = $('meterSelect');
   if (!sel) return;
   sel.innerHTML = '';
-  DEPTHS.forEach((_,i) => sel.appendChild(new Option(depthLabel(i), String(i))));
+  DEPTHS.forEach((_, i) => sel.appendChild(new Option(depthLabel(i), String(i))));
   sel.value = String(state.timer.selectedIdx || 0);
   sel.addEventListener('change', () => {
     state.timer.selectedIdx = Number(sel.value) || 0;
@@ -330,7 +318,7 @@ function buildProtocolTable() {
   timeInputs = [];
   noteInputs = [];
 
-  DEPTHS.forEach((_,i) => {
+  DEPTHS.forEach((_, i) => {
     const tr = document.createElement('tr');
 
     const tdD = document.createElement('td');
@@ -366,40 +354,43 @@ function buildProtocolTable() {
 function buildBemTable() {
   const bodenart = $('bem-bodenart')?.value || 'bindig';
   const schuhMm  = Number($('bem-schuh')?.value || 220);
-  const tbody    = $('bemBody');
+  const tbody = $('bemBody');
   if (!tbody) return;
   tbody.innerHTML = '';
 
+  // Anzeige wie in deiner Tabelle (qs) [1]
   const rows = [
-    { secm:'gedrückt', label:'sehr locker', qs:0,                          klammer:false },
+    { secm:'gedrückt', label:'sehr locker', qs:0,   klammer:false },
     { secm:'5–10',     label:'locker',       qs:bodenart==='bindig'?20:40,  klammer:true  },
-    { secm:'10–20',    label:'mitteldicht',  qs:bodenart==='bindig'?40:80,  klammer:bodenart==='bindig' },
+    { secm:'10–20',    label:'mitteldicht',  qs:bodenart==='bindig'?40:80,  klammer:(bodenart==='bindig') },
     { secm:'20–30',    label:'dicht',        qs:bodenart==='bindig'?70:120, klammer:false },
     { secm:'> 30',     label:'sehr dicht',   qs:bodenart==='bindig'?100:150,klammer:false },
   ];
 
-  rows.forEach(row => {
-    const rd = (row.qs * Math.PI * (schuhMm / 1000)) / 2.0;
+  rows.forEach(r => {
+    const rd = (r.qs * Math.PI * (schuhMm/1000)) / 2.0;
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="${row.klammer?'klammer':''}">${row.secm}</td>
-      <td class="${row.klammer?'klammer':''}">${row.label}</td>
-      <td class="${row.klammer?'klammer':''}">${row.klammer?'('+row.qs+')':row.qs}</td>
+      <td class="${r.klammer?'klammer':''}">${r.secm}</td>
+      <td class="${r.klammer?'klammer':''}">${r.label}</td>
+      <td class="${r.klammer?'klammer':''}">${r.klammer ? '('+r.qs+')' : r.qs}</td>
       <td class="rd-val">${fmtComma(rd,3)}</td>
-      <td class="${row.klammer?'klammer':''}">${row.klammer?'Klammerwert':''}</td>
+      <td class="${r.klammer?'klammer':''}">${r.klammer?'Klammerwert':''}</td>
     `;
     tbody.appendChild(tr);
   });
 }
 
 function buildProductLists() {
-  const trmBody  = $('trmList');
+  const trmBody = $('trmList');
   const ssabBody = $('ssabList');
+
   if (trmBody) TRM_PRODUCTS.forEach(p => {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${p.name}</td><td>${p.od}mm</td><td>${p.id}mm</td><td>${p.ws}mm</td><td>${p.kgm}</td><td>${p.preis>0?p.preis.toFixed(2)+' €':'–'}</td>`;
     trmBody.appendChild(tr);
   });
+
   if (ssabBody) SSAB_PRODUCTS.forEach(p => {
     const tr = document.createElement('tr');
     tr.innerHTML = `<td>${p.name}</td><td>${p.grade}</td><td>${p.od}mm</td><td>${p.ws}mm</td><td>${p.kgm}</td><td>${p.preis>0?p.preis.toFixed(2)+' €':'–'}</td>`;
@@ -407,17 +398,18 @@ function buildProductLists() {
   });
 }
 
-// ───────────────────────────── Recalc
+/* ===================== RECALC ===================== */
 function recalc() {
   const bodenart = $('inp-bodenart')?.value || 'bindig';
   const schuh    = Number($('inp-schuh')?.value || 220);
   const ed       = Number($('inp-ed')?.value || 0);
   const includeK = state.includeKlammer;
 
-  let sumTime = 0, sumRd = 0;
+  let sumTime = 0;
+  let sumRd = 0;
 
-  DEPTHS.forEach((_,i) => {
-    const t  = Number(timeInputs[i]?.value || 0);
+  DEPTHS.forEach((_, i) => {
+    const t = Number(timeInputs[i]?.value || 0);
     if (t > 0) sumTime += t;
 
     const rd = rdFromSec(t, bodenart, schuh, includeK);
@@ -427,8 +419,8 @@ function recalc() {
     if (el) el.textContent = fmtComma(rd, 2);
   });
 
-  if ($('sumTime')) $('sumTime').textContent = String(sumTime);
-  if ($('sumRd'))   $('sumRd').textContent   = fmtComma(sumRd, 2);
+  $('sumTime') && ($('sumTime').textContent = String(sumTime));
+  $('sumRd') && ($('sumRd').textContent = fmtComma(sumRd, 2));
 
   const res = $('sumResult');
   if (res) {
@@ -438,99 +430,86 @@ function recalc() {
   }
 }
 
-// ───────────────────────────── Timer (toggle)
-function timerSetBtn() {
+/* ===================== TIMER ===================== */
+function timerSetBtnUI() {
   const btn = $('btnTimeToggle');
   if (!btn) return;
   if (state.timer.running) {
     btn.textContent = '■ Stop';
-    btn.classList.replace('btn--accent', 'btn--stop');
+    btn.classList.remove('btn--accent');
+    btn.classList.add('btn--stop');
   } else {
     btn.textContent = '▶ Start';
-    btn.classList.replace('btn--stop', 'btn--accent');
+    btn.classList.remove('btn--stop');
+    btn.classList.add('btn--accent');
   }
 }
-
 function timerTick() {
   if (!state.timer.running) return;
-  const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs) / 1000));
-  const el  = $('timeLive');
-  if (el) el.value = `${sec} s`;
+  const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs)/1000));
+  $('timeLive') && ($('timeLive').value = `${sec} s`);
   state.timer.raf = requestAnimationFrame(timerTick);
 }
-
 function timerToggle() {
   if (state.timer.running) {
     state.timer.running = false;
     if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
     state.timer.raf = null;
 
-    const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs) / 1000));
+    const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs)/1000));
     const idx = state.timer.selectedIdx || 0;
     if (timeInputs[idx]) timeInputs[idx].value = String(sec);
 
     const next = Math.min(DEPTHS.length - 1, idx + 1);
     state.timer.selectedIdx = next;
-    const sel = $('meterSelect');
-    if (sel) sel.value = String(next);
-
-    const el = $('timeLive');
-    if (el) el.value = `${sec} s`;
+    $('meterSelect') && ($('meterSelect').value = String(next));
+    $('timeLive') && ($('timeLive').value = `${sec} s`);
 
     recalc();
     saveDraftDebounced();
   } else {
     state.timer.running = true;
     state.timer.startMs = Date.now();
-    const el = $('timeLive');
-    if (el) el.value = '0 s';
+    $('timeLive') && ($('timeLive').value = '0 s');
     timerTick();
   }
-  timerSetBtn();
+  timerSetBtnUI();
 }
 
-// ───────────────────────────── Signature Pads
+/* ===================== SIGNATURE PADS ===================== */
 function resizeCanvasForHiDPI(canvas) {
   const dpr = window.devicePixelRatio || 1;
   const rect = canvas.getBoundingClientRect();
   const w = Math.max(10, Math.floor(rect.width * dpr));
   const h = Math.max(10, Math.floor(rect.height * dpr));
   if (canvas.width === w && canvas.height === h) return;
-
-  canvas.width = w;
-  canvas.height = h;
-
+  canvas.width = w; canvas.height = h;
   const ctx = canvas.getContext('2d');
   ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 }
-
 function sigFillWhite(canvas) {
   const ctx = canvas.getContext('2d');
   const r = canvas.getBoundingClientRect();
   ctx.fillStyle = '#fff';
   ctx.fillRect(0, 0, r.width, r.height);
+  canvas.dataset.bg = '1';
 }
-
 function makeSignaturePad(canvas, onChange) {
   const ctx = canvas.getContext('2d');
+  canvas.style.touchAction = 'none';
 
-  canvas.style.touchAction = 'none'; // wichtig iOS/Android
   let drawing = false;
   let last = null;
-  let hasInk = false;
+  let signed = false;
 
   function prep() {
     resizeCanvasForHiDPI(canvas);
-    if (!canvas.dataset.bg) {
-      sigFillWhite(canvas);
-      canvas.dataset.bg = '1';
-    }
+    if (canvas.dataset.bg !== '1') sigFillWhite(canvas);
     ctx.lineWidth = 2.0;
     ctx.lineCap = 'round';
     ctx.lineJoin = 'round';
     ctx.strokeStyle = '#000';
   }
-
   function pos(e) {
     const r = canvas.getBoundingClientRect();
     return { x: e.clientX - r.left, y: e.clientY - r.top };
@@ -553,7 +532,7 @@ function makeSignaturePad(canvas, onChange) {
     ctx.lineTo(p.x, p.y);
     ctx.stroke();
     last = p;
-    hasInk = true;
+    signed = true;
   });
 
   function end(e) {
@@ -561,7 +540,6 @@ function makeSignaturePad(canvas, onChange) {
     e?.preventDefault?.();
     drawing = false;
     last = null;
-    if (hasInk) canvas.dataset.signed = '1';
     onChange?.();
   }
 
@@ -573,34 +551,26 @@ function makeSignaturePad(canvas, onChange) {
     clear() {
       prep();
       const r = canvas.getBoundingClientRect();
-      ctx.clearRect(0,0,r.width,r.height);
+      ctx.clearRect(0, 0, r.width, r.height);
       sigFillWhite(canvas);
-      canvas.dataset.bg = '1';
-      canvas.dataset.signed = '0';
-      hasInk = false;
+      signed = false;
       onChange?.();
     },
     getDataURL() {
-      if (canvas.dataset.signed !== '1') return '';
+      if (!signed) return '';
       return canvas.toDataURL('image/png');
     },
     setFromDataURL(dataURL) {
       prep();
       const r = canvas.getBoundingClientRect();
-      ctx.clearRect(0,0,r.width,r.height);
+      ctx.clearRect(0, 0, r.width, r.height);
       sigFillWhite(canvas);
-      canvas.dataset.bg = '1';
 
-      if (!dataURL) {
-        canvas.dataset.signed = '0';
-        hasInk = false;
-        return;
-      }
+      if (!dataURL) { signed = false; return; }
       const img = new Image();
       img.onload = () => {
         ctx.drawImage(img, 0, 0, r.width, r.height);
-        canvas.dataset.signed = '1';
-        hasInk = true;
+        signed = true;
       };
       img.src = dataURL;
     }
@@ -608,17 +578,16 @@ function makeSignaturePad(canvas, onChange) {
 }
 
 function initSignaturePads() {
-  const anCanvas = $('sigAnCanvas');
-  const agCanvas = $('sigAgCanvas');
-  if (!anCanvas || !agCanvas) return;
+  const anC = $('sigAnCanvas');
+  const agC = $('sigAgCanvas');
+  if (!anC || !agC) return;
 
-  sigPads.an = makeSignaturePad(anCanvas, saveDraftDebounced);
-  sigPads.ag = makeSignaturePad(agCanvas, saveDraftDebounced);
+  sigPads.an = makeSignaturePad(anC, saveDraftDebounced);
+  sigPads.ag = makeSignaturePad(agC, saveDraftDebounced);
 
   $('sigAnClear')?.addEventListener('click', () => sigPads.an.clear());
   $('sigAgClear')?.addEventListener('click', () => sigPads.ag.clear());
 
-  // default dates
   const d = $('inp-datum')?.value || new Date().toISOString().slice(0,10);
   if ($('sigAnDate') && !$('sigAnDate').value) $('sigAnDate').value = d;
   if ($('sigAgDate') && !$('sigAgDate').value) $('sigAgDate').value = d;
@@ -627,13 +596,13 @@ function initSignaturePads() {
   $('sigAgDate')?.addEventListener('change', saveDraftDebounced);
 }
 
-// ───────────────────────────── PDF Export (Viewer, inkl. Signaturen)
+/* ===================== PDF EXPORT (open in viewer tab) ===================== */
 async function exportPdf(optSnap = null) {
   const snap = optSnap || collectFormState();
   const meta = snap.meta || {};
 
   if (!window.PDFLib || !window.fontkit) {
-    alert('PDF-Library noch nicht geladen – bitte kurz warten und nochmals versuchen.');
+    alert('PDF-Library/Fontkit noch nicht geladen. Bitte kurz warten.');
     return;
   }
 
@@ -644,11 +613,17 @@ async function exportPdf(optSnap = null) {
   // Fonts
   let fReg, fBold;
   try {
-    const ab = await fetch('arial.ttf').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
-    fReg = await pdf.embedFont(ab, { subset: true });
+    const arialBytes = await fetch('arial.ttf').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
+    fReg = await pdf.embedFont(arialBytes, { subset: true });
+
     try {
-      const ab2 = await fetch('ARIALBD.TTF').then(r => r.ok ? r.arrayBuffer() : null);
-      fBold = ab2 ? await pdf.embedFont(ab2, { subset: true }) : fReg;
+      const bResp = await fetch('ARIALBD.TTF');
+      if (bResp.ok) {
+        const boldBytes = await bResp.arrayBuffer();
+        fBold = await pdf.embedFont(boldBytes, { subset: true });
+      } else {
+        fBold = fReg;
+      }
     } catch { fBold = fReg; }
   } catch {
     const { StandardFonts } = window.PDFLib;
@@ -663,7 +638,7 @@ async function exportPdf(optSnap = null) {
     logoImg = await pdf.embedPng(lb);
   } catch {}
 
-  const page = pdf.addPage([595.28, 841.89]);
+  const page = pdf.addPage([595.28, 841.89]); // A4
   const mm = v => v * 72 / 25.4;
   const K  = rgb(0,0,0);
 
@@ -675,7 +650,7 @@ async function exportPdf(optSnap = null) {
   // Rahmen
   page.drawRectangle({ x:x0, y:y0, width:W, height:H, borderColor:K, borderWidth:1.5 });
 
-  // Kopfzeile
+  // Kopfzeile höher, fett [10]
   const hdrH = mm(14);
   page.drawRectangle({ x:x0, y:y0+H-hdrH, width:W, height:hdrH, color:rgb(.88,.88,.88), borderColor:K, borderWidth:1 });
 
@@ -688,7 +663,7 @@ async function exportPdf(optSnap = null) {
 
   const hLine = (y, t=1) => page.drawLine({ start:{x:x0,y}, end:{x:x0+W,y}, thickness:t, color:K });
 
-  // Meta-Block
+  // Meta-Block [10]
   const rowH = mm(8);
   let cy = y0 + H - hdrH - rowH;
   const midX = x0 + W * 0.5;
@@ -696,25 +671,30 @@ async function exportPdf(optSnap = null) {
   function metaRow(l1, v1, l2, v2) {
     hLine(cy);
     page.drawLine({ start:{x:midX,y:cy}, end:{x:midX,y:cy+rowH}, thickness:1, color:K });
-    page.drawText(l1, { x:x0+mm(2),   y:cy+mm(2.2), size:10, font:fBold, color:K });
-    drawFit(page, v1, x0+mm(32),   cy+mm(2.2), midX-mm(34),       fReg, 10, K);
+
+    page.drawText(l1, { x:x0+mm(2), y:cy+mm(2.2), size:10, font:fBold, color:K });
+    drawFit(page, v1, x0+mm(32), cy+mm(2.2), (midX - mm(4))-(x0+mm(32)), fReg, 10, K);
+
     page.drawText(l2, { x:midX+mm(2), y:cy+mm(2.2), size:10, font:fBold, color:K });
-    drawFit(page, v2, midX+mm(55), cy+mm(2.2), x0+W-midX-mm(57), fReg, 10, K);
+    drawFit(page, v2, midX+mm(55), cy+mm(2.2), (x0+W-mm(2))-(midX+mm(55)), fReg, 10, K);
+
     cy -= rowH;
   }
 
   hLine(y0+H-hdrH);
-  metaRow('Datum:',       dateDE(meta.datum),            'Kostenstelle:', meta.kostenstelle || '');
-  metaRow('Projekt:',     meta.projekt || '',             'Auftraggeber:', meta.auftraggeber || '');
-  metaRow('Trägergerät:', meta.traeger || 'SK 270',       'Pfahlnummer:',  meta.pfahlNr || '');
-  metaRow('Hyd-hammer:',  meta.hammer  || 'Wimmer WH26', 'Pfahl-Bemessungslast [kN] :', meta.ed ? '  '+fmtComma(Number(meta.ed),2) : '');
-  const pfahlStr = String(meta.pfahltyp||'').replace(/x/gi,'×') + ` Ø${Number(meta.schuh||220)}mm`;
-  metaRow('Pfahltyp:',    pfahlStr,                       'Bodenart:',     meta.bodenart || '');
+  metaRow('Datum:', dateDE(meta.datum), 'Kostenstelle:', meta.kostenstelle || '');
+  metaRow('Projekt:', meta.projekt || '', 'Auftraggeber:', meta.auftraggeber || '');
+  metaRow('Trägergerät:', meta.traeger || 'SK 270', 'Pfahlnummer:', meta.pfahlNr || '');
+  metaRow('Hyd-hammer:', meta.hammer || 'Wimmer WH26', 'Pfahl-Bemessungslast [kN] :', meta.ed ? '  '+fmtComma(Number(meta.ed),2) : '');
 
-  // Tabelle + Diagramm
+  const pfahlStr = String(meta.pfahltyp||'').replace(/x/gi,'×') + ` Ø${Number(meta.schuh||220)}mm`;
+  metaRow('Pfahltyp:', pfahlStr, 'Bodenart:', meta.bodenart || '');
+
+  // Tabelle + Diagramm (wie Vorlage) [10]
   const tableTop    = cy + rowH;
   const tableBottom = y0 + mm(28);
   const tH          = tableTop - tableBottom;
+
   const leftW  = W * 0.52;
   const rightW = W - leftW;
   const thRow  = mm(7);
@@ -722,6 +702,7 @@ async function exportPdf(optSnap = null) {
   page.drawRectangle({ x:x0,       y:tableTop-thRow, width:leftW,  height:thRow, color:rgb(.93,.93,.93), borderColor:K, borderWidth:1 });
   page.drawRectangle({ x:x0+leftW, y:tableTop-thRow, width:rightW, height:thRow, color:rgb(.93,.93,.93), borderColor:K, borderWidth:1 });
 
+  // Spalten (Eindringtiefe breiter)
   const c1  = leftW * 0.30;
   const c2  = leftW * 0.16;
   const c3  = leftW * 0.16;
@@ -730,164 +711,132 @@ async function exportPdf(optSnap = null) {
   const xC3 = xC2 + c3;
 
   [xC1,xC2,xC3].forEach(xx => page.drawLine({ start:{x:xx,y:tableBottom}, end:{x:xx,y:tableTop}, thickness:1, color:K }));
+
   const chartX0 = x0 + leftW;
   page.drawLine({ start:{x:chartX0,y:tableBottom}, end:{x:chartX0,y:tableTop}, thickness:1, color:K });
 
-  page.drawText('Eindringtiefe [m]', { x:x0+mm(1.5),  y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
-  page.drawText('Zeit [sec]',        { x:xC1+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
-  page.drawText('Rd [kN]',           { x:xC2+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
-  page.drawText('Anmerkung',         { x:xC3+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
+  // Header Texte links
+  page.drawText('Eindringtiefe [m]', { x:x0+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
+  page.drawText('Zeit [sec]',        { x:xC1+mm(1.5),y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
+  page.drawText('Rd [kN]',           { x:xC2+mm(1.5),y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
+  page.drawText('Anmerkung',         { x:xC3+mm(1.5),y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
 
+  // Chart
   const times = (snap.times||[]).slice(0,25).map(v => Number(v||0));
-  const maxT  = Math.max(0,...times);
+  const maxT  = Math.max(0, ...times);
   const scale = niceTicks(maxT, 4);
   const xMax  = Math.max(1, scale.max);
 
   const innerL = chartX0 + mm(20);
   const innerR = chartX0 + rightW - mm(4);
   const innerW = innerR - innerL;
-  const cX     = v => innerL + (Math.max(0,Math.min(xMax,v))/xMax) * innerW;
+  const cX     = v => innerL + (Math.max(0, Math.min(xMax, v)) / xMax) * innerW;
 
-  const chartTop    = tableTop - thRow;
+  const chartTop = tableTop - thRow;
   const chartBottom = tableBottom;
 
-  // X Achse oben
+  // X-Achse oben + tick labels
   page.drawLine({ start:{x:innerL,y:chartTop}, end:{x:innerR,y:chartTop}, thickness:0.9, color:K });
-
   scale.ticks.forEach(t => {
     const gx = cX(t);
     page.drawText(String(t), { x:gx-mm(2), y:chartTop+mm(2), size:8, font:fReg, color:K });
     page.drawLine({ start:{x:gx,y:chartTop}, end:{x:gx,y:chartTop-mm(2)}, thickness:0.8, color:K });
   });
 
-  // Zeit [sec] auf gleicher Höhe wie 0/Ticks
-  page.drawText('Zeit [sec]', {
-    x: innerL - mm(15),
-    y: chartTop + mm(2),
-    size: 8.5,
-    font: fBold,
-    color: K
-  });
+  // "Zeit [sec]" links von 0 auf gleicher Höhe wie 0
+  page.drawText('Zeit [sec]', { x: innerL - mm(15), y: chartTop + mm(2), size: 8.5, font: fBold, color: K });
 
-  // Y Achse
+  // Y-Achse + vertikales Label
   page.drawLine({ start:{x:innerL,y:chartBottom}, end:{x:innerL,y:chartTop}, thickness:0.9, color:K });
+  page.drawText('Eindringtiefe', { x: innerL - mm(5.0), y: chartBottom + mm(1.5), size: 8.5, font:fBold, color:K, rotate: degrees(90) });
 
-  // Eindringtiefe vertikal an der Achse
-  page.drawText('Eindringtiefe', {
-    x: innerL - mm(5.0),
-    y: chartBottom + mm(1.5),
-    size: 8.5,
-    font: fBold,
-    color: K,
-    rotate: degrees(90)
-  });
-
+  // Rows
   const dataRowH = (tH - thRow - mm(12)) / (25 + 2);
-  let yRowTop    = tableTop - thRow;
+  let yRowTop = tableTop - thRow;
 
   const bodenart = meta.bodenart || 'bindig';
   const schuhMm  = Number(meta.schuh || 220);
   const includeK = !!Number(snap.includeKlammer || 0);
-  let sumTime = 0, sumRd = 0;
 
-  for (let i = 0; i < 25; i++) {
+  let sumTime = 0;
+  let sumRd = 0;
+
+  for (let i=0;i<25;i++) {
     const yBot = yRowTop - dataRowH;
 
-    // Zeilenlinie nur im Tabellenbereich links
+    // Zeilenlinie nur links (kein Rahmen durchs Diagramm) [10]
     page.drawLine({ start:{x:x0,y:yBot}, end:{x:x0+leftW,y:yBot}, thickness:1, color:K });
 
-    const t    = Number(snap.times?.[i] || 0);
+    const t = Number(snap.times?.[i] || 0);
     const note = String(snap.notes?.[i] || '');
     if (t > 0) sumTime += t;
 
     const rd = rdFromSec(t, bodenart, schuhMm, includeK);
     sumRd += rd;
 
-    page.drawText(depthLabel(i), { x:x0+mm(1.5),  y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
+    page.drawText(depthLabel(i), { x:x0+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
     if (t > 0) page.drawText(String(t), { x:xC1+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
-    page.drawText(fmtComma(rd,2),        { x:xC2+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
+    page.drawText(fmtComma(rd,2), { x:xC2+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
     if (note) drawFit(page, note, xC3+mm(1.5), y:yBot+mm(1.5), (x0+leftW-mm(2))-(xC3+mm(1.5)), fReg, 9, K);
 
-    // Y-Achse Label näher an Achse (rechtsbündig)
-    const yMid     = yBot + dataRowH / 2;
-    const yLblText = depthLabel(i);
+    // Y Achse tick + label (näher an Achse, rechtsbündig)
+    const yMid = yBot + dataRowH/2;
+    const yLbl = depthLabel(i);
     const yLblSize = 7.5;
-    const yLblW    = pdfTextWidth(fReg, yLblSize, yLblText);
+    const yLblW = pdfTextWidth(fReg, yLblSize, yLbl);
     page.drawLine({ start:{x:innerL,y:yMid}, end:{x:innerL+mm(1.5),y:yMid}, thickness:0.7, color:K });
-    page.drawText(yLblText, {
-      x: innerL - mm(1.2) - yLblW,
-      y: yMid - mm(1.2),
-      size: yLblSize,
-      font: fReg,
-      color: K
-    });
+    page.drawText(yLbl, { x: innerL - mm(1.2) - yLblW, y: yMid - mm(1.2), size:yLblSize, font:fReg, color:K });
 
-    // Balken gelb mit schwarzer Umrandung
+    // Bar (gelb + schwarzer Rahmen)
     if (t > 0) {
       const barH = dataRowH * 0.60;
       const barY = yBot + (dataRowH - barH) / 2;
-      page.drawRectangle({
-        x: cX(0),
-        y: barY,
-        width: Math.max(0.5, cX(t) - cX(0)),
-        height: barH,
-        color: rgb(1,0.929,0),
-        borderColor: K,
-        borderWidth: 0.6
-      });
+      page.drawRectangle({ x: cX(0), y: barY, width: Math.max(0.5, cX(t)-cX(0)), height: barH, color: rgb(1,0.929,0), borderColor:K, borderWidth:0.6 });
     }
 
     yRowTop = yBot;
   }
 
-  // Footer: Gesamtzeit
+  // Footer (links)
   const fy1 = yRowTop - dataRowH;
   page.drawLine({ start:{x:x0,y:fy1}, end:{x:x0+leftW,y:fy1}, thickness:1, color:K });
-  page.drawText('Gesamtzeit:',   { x:x0+mm(1.5),  y:fy1+mm(1.5), size:10, font:fBold, color:K });
-  page.drawText(String(sumTime), { x:xC1+mm(1.5), y:fy1+mm(1.5), size:10, font:fReg,  color:K });
+  page.drawText('Gesamtzeit:', { x:x0+mm(1.5), y:fy1+mm(1.5), size:10, font:fBold, color:K });
+  page.drawText(String(sumTime), { x:xC1+mm(1.5), y:fy1+mm(1.5), size:10, font:fReg, color:K });
   if (meta.ed) page.drawText(fmtComma(Number(meta.ed),2), { x:xC3+mm(1.5), y:fy1+mm(1.5), size:10, font:fReg, color:K });
 
-  // Footer: Σ Pfahlwiderstand
   const fy2 = fy1 - dataRowH;
   page.drawLine({ start:{x:x0,y:fy2}, end:{x:x0+leftW,y:fy2}, thickness:1, color:K });
   drawFit(page, 'Σ Pfahlwiderstand Rd', x0+mm(1.5), fy2+mm(1.5), c1-mm(3), fBold, 9.5, K);
 
-  // ΣRd in Rd-Spalte
+  // ΣRd in Rd-Spalte (nicht unter Zeit)
   page.drawText(fmtComma(sumRd,2), { x:xC2+mm(1.5), y:fy2+mm(1.5), size:10, font:fReg, color:K });
 
   const ok = sumRd >= Number(meta.ed || 0);
-  page.drawText(ok ? 'Rd ≥ Ed' : 'Rd < Ed', {
-    x: xC3+mm(1.5),
-    y: fy2+mm(1.5),
-    size: 10,
-    font: fBold,
-    color: ok ? rgb(0,0.5,0) : rgb(0.8,0,0)
-  });
+  page.drawText(ok ? 'Rd ≥ Ed' : 'Rd < Ed', { x:xC3+mm(1.5), y:fy2+mm(1.5), size:10, font:fBold, color: ok ? rgb(0,0.5,0) : rgb(0.8,0,0) });
 
-  // Signaturbereich
+  // Signaturbereich [10]
   const signTop = y0 + mm(22);
   page.drawLine({ start:{x:x0,y:signTop}, end:{x:x0+W,y:signTop}, thickness:1, color:K });
   page.drawLine({ start:{x:x0+W/2,y:y0}, end:{x:x0+W/2,y:signTop}, thickness:1, color:K });
-
-  page.drawText('AN ( Datum; Unterschrift)',     { x:x0+mm(2),     y:y0+mm(6), size:10, font:fReg, color:K });
+  page.drawText('AN ( Datum; Unterschrift)', { x:x0+mm(2), y:y0+mm(6), size:10, font:fReg, color:K });
   page.drawText('AG/ ÖBA (Datum; Unterschrift)', { x:x0+W/2+mm(2), y:y0+mm(6), size:10, font:fReg, color:K });
 
-  // Signaturen einbetten (falls vorhanden)
+  // Signaturen einbetten
   const an = snap.sign?.an || {};
   const ag = snap.sign?.ag || {};
 
   const boxPad = mm(3);
   const boxBottom = y0 + mm(10);
-  const boxTop    = signTop - mm(2);
-  const boxH      = Math.max(mm(5), boxTop - boxBottom);
+  const boxTop = signTop - mm(2);
+  const boxH = Math.max(mm(5), boxTop - boxBottom);
 
-  const leftX  = x0 + boxPad;
+  const leftX = x0 + boxPad;
   const leftW2 = (W/2) - 2*boxPad;
   const rightX = x0 + (W/2) + boxPad;
-  const rightW2= (W/2) - 2*boxPad;
+  const rightW2 = (W/2) - 2*boxPad;
 
-  if (an.date) page.drawText(dateDE(an.date), { x:x0+mm(2),        y:y0+mm(14), size:8, font:fReg, color:K });
-  if (ag.date) page.drawText(dateDE(ag.date), { x:x0+W/2+mm(2),    y:y0+mm(14), size:8, font:fReg, color:K });
+  if (an.date) page.drawText(dateDE(an.date), { x:x0+mm(2), y:y0+mm(14), size:8, font:fReg, color:K });
+  if (ag.date) page.drawText(dateDE(ag.date), { x:x0+W/2+mm(2), y:y0+mm(14), size:8, font:fReg, color:K });
 
   if (an.img) {
     const u8 = dataURLtoU8(an.img);
@@ -904,25 +853,23 @@ async function exportPdf(optSnap = null) {
     }
   }
 
-  // PDF anzeigen (Viewer) – kein Print
+  // PDF in neuem Tab anzeigen (kein Print)
   const bytes = await pdf.save();
-  const blob  = new Blob([bytes], { type:'application/pdf' });
-  const url   = URL.createObjectURL(blob);
+  const blob = new Blob([bytes], { type:'application/pdf' });
+  const url = URL.createObjectURL(blob);
 
   const w = window.open(url, '_blank');
   if (!w) {
     alert('Bitte Popups zulassen, um das PDF anzuzeigen!');
-    // Fallback Download
-    const d    = meta.datum ? new Date(meta.datum) : new Date();
+    const d = meta.datum ? new Date(meta.datum) : new Date();
     const name = `${dateTag(d)}_Rammpfahl-Protokoll_Nr ${meta.pfahlNr || 'X'}.pdf`;
     const a = document.createElement('a');
     a.href = url; a.download = name; a.click();
   }
-
   setTimeout(() => URL.revokeObjectURL(url), 60000);
 }
 
-// ───────────────────────────── Events
+/* ===================== EVENTS ===================== */
 function hookEvents() {
   [
     'inp-datum','inp-projekt','inp-kostenstelle','inp-auftraggeber',
@@ -945,27 +892,27 @@ function hookEvents() {
   $('btnTimeToggle')?.addEventListener('click', timerToggle);
 
   $('btnReset')?.addEventListener('click', () => {
+    // Timer stoppen
     if (state.timer.running) {
       state.timer.running = false;
       if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
       state.timer.raf = null;
+      timerSetBtnUI();
     }
 
+    // Werte löschen
     timeInputs.forEach(i => i.value = '');
     noteInputs.forEach(i => i.value = '');
 
+    // Signaturen löschen
     sigPads.an?.clear?.();
     sigPads.ag?.clear?.();
 
-    const d = $('inp-datum')?.value || new Date().toISOString().slice(0,10);
-    if ($('sigAnDate')) $('sigAnDate').value = d;
-    if ($('sigAgDate')) $('sigAgDate').value = d;
-
-    const live = $('timeLive'); if (live) live.value = '0 s';
+    // Meter + Live
     state.timer.selectedIdx = 0;
-    const sel = $('meterSelect'); if (sel) sel.value = '0';
+    $('meterSelect') && ($('meterSelect').value = '0');
+    $('timeLive') && ($('timeLive').value = '0 s');
 
-    timerSetBtn();
     recalc();
     saveDraftDebounced();
   });
@@ -983,7 +930,7 @@ function hookEvents() {
   });
 }
 
-// ───────────────────────────── Init
+/* ===================== INIT ===================== */
 window.addEventListener('DOMContentLoaded', () => {
   if ($('inp-datum') && !$('inp-datum').value) {
     $('inp-datum').value = new Date().toISOString().slice(0,10);
@@ -994,17 +941,21 @@ window.addEventListener('DOMContentLoaded', () => {
   buildMeterSelect();
   buildProductLists();
   buildBemTable();
-  timerSetBtn();
   hookEvents();
 
-  // Signature pads müssen VOR loadDraft initialisiert sein
+  // Button-Status initial
+  timerSetBtnUI();
+
+  // Signaturen VOR loadDraft initialisieren
   initSignaturePads();
 
+  // Draft laden
   loadDraft();
+
   recalc();
   renderHistoryList();
 
   if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('sw.js').catch(() => {});
+    navigator.serviceWorker.register('sw.js').catch(()=>{});
   }
 });
