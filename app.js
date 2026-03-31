@@ -983,3 +983,30 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator)
     navigator.serviceWorker.register('sw.js').catch(() => {});
 });
+  // ── PWA Installationsbutton
+  let _installPrompt = null;
+
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    _installPrompt = e;
+    const btn = $('btnInstall');
+    if (btn) btn.hidden = false;
+  });
+
+  $('btnInstall')?.addEventListener('click', async () => {
+    if (!_installPrompt) return;
+    _installPrompt.prompt();
+    const { outcome } = await _installPrompt.userChoice;
+    if (outcome === 'accepted') {
+      const btn = $('btnInstall');
+      if (btn) btn.hidden = true;
+    }
+    _installPrompt = null;
+  });
+
+  // Wenn App bereits installiert ist, Button verstecken
+  window.addEventListener('appinstalled', () => {
+    const btn = $('btnInstall');
+    if (btn) btn.hidden = true;
+    _installPrompt = null;
+  });
