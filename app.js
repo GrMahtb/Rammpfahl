@@ -574,7 +574,7 @@ async function exportPdf(optSnap = null) {
   // X-Achsenbeschriftung links von 0
   page.drawText('Zeit [sec]', {
     x: innerL - mm(15),
-    y: chartTop + mm(5),
+    y: chartTop + mm(2),
     size: 8.5,
     font: fBold,
     color: K
