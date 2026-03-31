@@ -410,7 +410,7 @@ function recalc(){
 }
 
 /* ---------- timer ---------- */
-function timerSetBtnUI(){
+timerSetBtnUI(){
   const btn = $('btnTimeToggle');
   if (!btn) return;
   if (state.timer.running) {
@@ -899,7 +899,7 @@ function hookEvents() {
     sigPads.an?.clear();
     sigPads.ag?.clear();
 
-    timerSetBtn(); recalc(); saveDraftDebounced();
+timerSetBtnUI(); recalc(); saveDraftDebounced();
   });
 
   $('btnSave')?.addEventListener('click', () => {
