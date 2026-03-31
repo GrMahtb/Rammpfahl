@@ -289,6 +289,23 @@ function renderHistoryList(){
 }
 
 /* ───────────────────────── UI build ───────────────────────── */
+function buildPfahltypDropdown() {
+  const sel = $('inp-pfahltyp');
+  if (!sel) return;
+  sel.innerHTML = '';
+  
+  const optGroupTRM = document.createElement('optgroup');
+  optGroupTRM.label = 'TRM (Duktil)';
+  TRM_PRODUCTS.forEach(p => optGroupTRM.appendChild(new Option(p.name, p.name)));
+  
+  const optGroupSSAB = document.createElement('optgroup');
+  optGroupSSAB.label = 'SSAB (Stahlrohr)';
+  SSAB_PRODUCTS.forEach(p => optGroupSSAB.appendChild(new Option(p.name, p.name)));
+  
+  sel.appendChild(optGroupTRM);
+  sel.appendChild(optGroupSSAB);
+}
+
 function buildMeterSelect(){
   const sel = $('meterSelect');
   if (!sel) return;
@@ -356,7 +373,6 @@ function buildBemTable(){
   ];
 
   rows.forEach(r => {
-    // FIX: KEIN /2.0 (Excel liefert Rd/m bereits mit Sicherheitsbeiwert)
     const rd = r.qs * Math.PI * (schuhMm/1000);
     const tr = document.createElement('tr');
     tr.innerHTML = `
@@ -414,16 +430,16 @@ function recalc(){
 
 /* ───────────────────────── timer ───────────────────────── */
 function timerSetBtnUI(){
-  const btn = $('btnTimeToggle');
-  if (!btn) return;
+  const btnStart = $('btnStartNext');
+  const btnStop  = $('btnStop');
+  if (!btnStart || !btnStop) return;
+  
   if (state.timer.running) {
-    btn.textContent = '■ Stop';
-    btn.classList.remove('btn--accent');
-    btn.classList.add('btn--stop');
+    btnStart.textContent = '▶ Nächster Meter';
+    btnStop.disabled = false;
   } else {
-    btn.textContent = '▶ Start';
-    btn.classList.remove('btn--stop');
-    btn.classList.add('btn--accent');
+    btnStart.textContent = '▶ Start';
+    btnStop.disabled = true;
   }
 }
 
@@ -434,26 +450,48 @@ function timerTick(){
   state.timer.raf = requestAnimationFrame(timerTick);
 }
 
-function timerToggle(){
+function timerStartNext(){
   if (state.timer.running) {
-    state.timer.running = false;
-    if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
-    state.timer.raf = null;
+    // Zeit für aktuellen Meter sichern
     const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs)/1000));
     const idx = state.timer.selectedIdx || 0;
     if (timeInputs[idx]) timeInputs[idx].value = String(sec);
+    
+    // Nächsten Meter auswählen
     const next = Math.min(DEPTHS.length-1, idx+1);
     state.timer.selectedIdx = next;
     $('meterSelect') && ($('meterSelect').value = String(next));
-    $('timeLive') && ($('timeLive').value = `${sec} s`);
+    
+    // Timer für den neuen Meter von 0 starten
+    state.timer.startMs = Date.now();
+    $('timeLive') && ($('timeLive').value = '0 s');
+    
     recalc();
     saveDraftDebounced();
   } else {
+    // Ganz neu starten
     state.timer.running = true;
     state.timer.startMs = Date.now();
     $('timeLive') && ($('timeLive').value = '0 s');
     timerTick();
   }
+  timerSetBtnUI();
+}
+
+function timerStop(){
+  if (!state.timer.running) return;
+  
+  state.timer.running = false;
+  if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
+  state.timer.raf = null;
+  
+  // Zeit für letzten/aktuellen Meter eintragen
+  const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs)/1000));
+  const idx = state.timer.selectedIdx || 0;
+  if (timeInputs[idx]) timeInputs[idx].value = String(sec);
+  
+  recalc();
+  saveDraftDebounced();
   timerSetBtnUI();
 }
 
@@ -710,19 +748,18 @@ async function exportPdf(optSnap=null){
   const chartTop    = tableTop - thRow;
   const chartBottom = tableBottom;
 
- // ── Vertikale Gridlines nur bei Hauptticks (10s)
-// (vor den Balken zeichnen, damit sie unterhalb liegen)
-const gridStep = 10;
-for (let t = gridStep; t <= xMax + 1e-9; t += gridStep) {
-  const gx = cX(t);
-  page.drawLine({
-    start: { x: gx, y: chartBottom },
-    end:   { x: gx, y: chartTop },
-    thickness: 0.35,
-    color: K,        // gleiche Farbe wie Achsen (Y-Achse nutzt auch K) [1]
-    opacity: 0.35
-  });
-}
+  // ── Vertikale Gridlines nur bei Hauptticks (10s)
+  const gridStep = 10;
+  for (let t = gridStep; t <= xMax + 1e-9; t += gridStep) {
+    const gx = cX(t);
+    page.drawLine({
+      start: { x: gx, y: chartBottom },
+      end:   { x: gx, y: chartTop },
+      thickness: 0.35,
+      color: K,
+      opacity: 0.35
+    });
+  }
 
   // X axis
   page.drawLine({ start:{x:innerL,y:chartTop}, end:{x:innerR,y:chartTop}, thickness:0.9, color:K });
@@ -797,9 +834,8 @@ for (let t = gridStep; t <= xMax + 1e-9; t += gridStep) {
   const ok = sumRd >= Number(meta.ed || 0);
   page.drawText(ok ? 'Rd ≥ Ed' : 'Rd < Ed', { x:xC3+mm(1.5), y:fy2+mm(1.5), size:10, font:fBold, color: ok ? rgb(0,0.5,0) : rgb(0.8,0,0) });
 
-  // ───────────────────────── Signaturen (Fix: nicht verzerren + Datum lesbar)
-  // Mehr Platz: Signaturbereich bis knapp unter die Tabelle ziehen
-  const signTop = tableBottom - mm(2); // statt fix mm(22)
+  // ───────────────────────── Signaturen (nicht verzerren + Datum lesbar)
+  const signTop = tableBottom - mm(2); 
 
   page.drawLine({ start:{x:x0,y:signTop}, end:{x:x0+W,y:signTop}, thickness:1, color:K });
   page.drawLine({ start:{x:x0+W/2,y:y0}, end:{x:x0+W/2,y:signTop}, thickness:1, color:K });
@@ -816,18 +852,15 @@ for (let t = gridStep; t <= xMax + 1e-9; t += gridStep) {
   const rightX  = x0 + (W/2) + boxPad;
   const rightW2 = (W/2) - 2*boxPad;
 
-  // Datum oben im jeweiligen Feld (eigener Bereich)
   const dateY = signTop - mm(6.5);
   if (an.date) page.drawText(dateDE(an.date), { x:x0+mm(2),       y:dateY, size:9, font:fBold, color:K });
   if (ag.date) page.drawText(dateDE(ag.date), { x:x0+W/2+mm(2),   y:dateY, size:9, font:fBold, color:K });
 
-  // Signaturbereich darunter (kleiner), damit Datum frei bleibt
   const sigBottom = y0 + mm(8);
   const sigTop    = dateY - mm(2.0);
   const sigH      = Math.max(mm(5), sigTop - sigBottom);
 
   function drawImageFit(img, x, y, w, h){
-    // Seitenverhältnis beibehalten, zusätzlich etwas "Luft" lassen
     const pad = Math.min(w, h) * 0.06;
     const aw = Math.max(1, w - 2*pad);
     const ah = Math.max(1, h - 2*pad);
@@ -889,7 +922,8 @@ function hookEvents() {
   $('bem-bodenart')?.addEventListener('change', buildBemTable);
   $('bem-schuh')?.addEventListener('input',    buildBemTable);
 
-  $('btnTimeToggle')?.addEventListener('click', timerToggle);
+  $('btnStartNext')?.addEventListener('click', timerStartNext);
+  $('btnStop')?.addEventListener('click', timerStop);
 
   $('btnReset')?.addEventListener('click', () => {
     if (state.timer.running) {
@@ -906,7 +940,7 @@ function hookEvents() {
     sigPads.an?.clear();
     sigPads.ag?.clear();
 
-    timerSetBtnUI();  // FIX: richtiger Funktionsname
+    timerSetBtnUI();
     recalc();
     saveDraftDebounced();
   });
@@ -932,14 +966,14 @@ window.addEventListener('DOMContentLoaded', () => {
   initTabs();
   buildProtocolTable();
   buildMeterSelect();
+  buildPfahltypDropdown(); // WICHTIG: Vor loadDraft() aufrufen!
   buildProductLists();
   buildBemTable();
 
-  timerSetBtnUI(); // FIX: richtiger Funktionsname
+  timerSetBtnUI();
 
   hookEvents();
 
-  // Signaturen VOR loadDraft initialisieren!
   initSignaturePads();
   loadDraft();
 
