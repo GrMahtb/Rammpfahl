@@ -267,3 +267,24 @@ body {
   user-select: none;
 }
 .sig-actions { display: flex; justify-content: flex-end; margin-top: 8px; }
+/* Logo gelb hinterlegen (ohne Lage-/Größenänderung des Bildes) */
+.brand__logo{
+  position: relative;
+  display: inline-flex;          /* Layout bleibt stabil */
+  align-items: center;
+}
+
+.brand__logo::before{
+  content: "";
+  position: absolute;
+  inset: 0;                      /* exakt gleiche Fläche wie .brand__logo */
+  background: var(--accent);     /* gelb wie sonst (z.B. Buttons) */
+  border-radius: 4px;            /* optional: leicht wie „Sensor“-Optik */
+  z-index: 0;
+}
+
+.brand__logo img{
+  position: relative;
+  z-index: 1;                    /* Bild bleibt oben */
+  display: block;
+}
