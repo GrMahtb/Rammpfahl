@@ -36,7 +36,7 @@ const SSAB_PRODUCTS = [
 const $ = id => document.getElementById(id);
 let timeInputs = [];
 let noteInputs = [];
-let sigPads = { an:null, ag:null };
+let sigPads = { an: null, ag: null };
 const state = {
   includeKlammer: false,
   timer: { running: false, startMs: 0, raf: null, selectedIdx: 0 }
@@ -107,7 +107,132 @@ function drawFit(page, text, x, y, maxW, font, size, color) {
   while (s > 6 && pdfTextWidth(font, s, String(text)) > maxW) s -= 0.25;
   page.drawText(String(text), { x, y, size: s, font, color });
 }
+function resizeCanvasForHiDPI(canvas) {
+  const dpr = window.devicePixelRatio || 1;
+  const rect = canvas.getBoundingClientRect();
+  const w = Math.max(10, Math.floor(rect.width * dpr));
+  const h = Math.max(10, Math.floor(rect.height * dpr));
+  if (canvas.width === w && canvas.height === h) return;
 
+  canvas.width = w;
+  canvas.height = h;
+
+  const ctx = canvas.getContext('2d');
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0); // ab jetzt in CSS-Pixeln zeichnen
+}
+
+function sigEnsureWhiteBg(canvas) {
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+  if (canvas.dataset.bg === '1') return;
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, rect.width, rect.height);
+  canvas.dataset.bg = '1';
+}
+
+function sigClear(canvas) {
+  resizeCanvasForHiDPI(canvas);
+  const ctx = canvas.getContext('2d');
+  const rect = canvas.getBoundingClientRect();
+
+  // Clear + weißer Hintergrund (wichtig für Export)
+  ctx.clearRect(0, 0, rect.width, rect.height);
+  ctx.fillStyle = '#fff';
+  ctx.fillRect(0, 0, rect.width, rect.height);
+  canvas.dataset.bg = '1';
+}
+
+function makeSignaturePad(canvas, onChange) {
+  const ctx = canvas.getContext('2d');
+
+  // wichtig für iOS/Android: verhindert Scrollen beim Zeichnen
+  canvas.style.touchAction = 'none';
+
+  let drawing = false;
+  let last = null;
+
+  function prep() {
+    resizeCanvasForHiDPI(canvas);
+    sigEnsureWhiteBg(canvas);
+    ctx.lineWidth = 2.0;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+    ctx.strokeStyle = '#000';
+  }
+
+  function pos(e) {
+    const r = canvas.getBoundingClientRect();
+    return { x: e.clientX - r.left, y: e.clientY - r.top };
+  }
+
+  canvas.addEventListener('pointerdown', (e) => {
+    prep();
+    drawing = true;
+    last = pos(e);
+    canvas.setPointerCapture?.(e.pointerId);
+  });
+
+  canvas.addEventListener('pointermove', (e) => {
+    if (!drawing) return;
+    const p = pos(e);
+    ctx.beginPath();
+    ctx.moveTo(last.x, last.y);
+    ctx.lineTo(p.x, p.y);
+    ctx.stroke();
+    last = p;
+  });
+
+  function end() {
+    if (!drawing) return;
+    drawing = false;
+    last = null;
+    onChange?.();
+  }
+
+  canvas.addEventListener('pointerup', end);
+  canvas.addEventListener('pointercancel', end);
+  canvas.addEventListener('pointerleave', end);
+
+  return {
+    clear() { sigClear(canvas); onChange?.(); },
+    getDataURL() {
+      if (canvas.dataset.bg !== '1') return '';
+      return canvas.toDataURL('image/png');
+    },
+    setFromDataURL(dataURL) {
+      sigClear(canvas);
+      if (!dataURL) return;
+      const img = new Image();
+      img.onload = () => {
+        const r = canvas.getBoundingClientRect();
+        ctx.drawImage(img, 0, 0, r.width, r.height);
+      };
+      img.src = dataURL;
+      canvas.dataset.bg = '1';
+    }
+  };
+}
+
+function initSignaturePads() {
+  const anCanvas = $('sigAnCanvas');
+  const agCanvas = $('sigAgCanvas');
+  if (!anCanvas || !agCanvas) return;
+
+  sigPads.an = makeSignaturePad(anCanvas, saveDraftDebounced);
+  sigPads.ag = makeSignaturePad(agCanvas, saveDraftDebounced);
+
+  $('sigAnClear')?.addEventListener('click', () => sigPads.an.clear());
+  $('sigAgClear')?.addEventListener('click', () => sigPads.ag.clear());
+
+  // Datum default = Protokoll-Datum
+  const d = $('inp-datum')?.value || new Date().toISOString().slice(0,10);
+  if ($('sigAnDate') && !$('sigAnDate').value) $('sigAnDate').value = d;
+  if ($('sigAgDate') && !$('sigAgDate').value) $('sigAgDate').value = d;
+
+  // Änderungen an Datumsfeldern speichern
+  $('sigAnDate')?.addEventListener('change', saveDraftDebounced);
+  $('sigAgDate')?.addEventListener('change', saveDraftDebounced);
+}
 // ─── TABS ─────────────────────────────────────
 function initTabs() {
   document.querySelectorAll('.tab').forEach(btn => {
@@ -145,6 +270,10 @@ function collectFormState() {
     meterIdx: state.timer.selectedIdx || 0,
     times: DEPTHS.map((_,i) => timeInputs[i]?.value || ''),
     notes: DEPTHS.map((_,i) => noteInputs[i]?.value || '')
+    sign: {
+  an: { date: $('sigAnDate')?.value || '', img: sigPads.an?.getDataURL() || '' },
+  ag: { date: $('sigAgDate')?.value || '', img: sigPads.ag?.getDataURL() || '' }
+}
   };
 }
 sign: {
@@ -198,7 +327,12 @@ function loadDraft() {
     if (raw) applyFormState(JSON.parse(raw));
   } catch {}
 }
+// Signaturen restore
+if ($('sigAnDate')) $('sigAnDate').value = s.sign?.an?.date || $('inp-datum')?.value || '';
+if ($('sigAgDate')) $('sigAgDate').value = s.sign?.ag?.date || $('inp-datum')?.value || '';
 
+sigPads.an?.setFromDataURL(s.sign?.an?.img || '');
+sigPads.ag?.setFromDataURL(s.sign?.ag?.img || '');
 // ─── HISTORY ──────────────────────────────────
 function readHistory()   { try { return JSON.parse(localStorage.getItem(STORAGE_HISTORY) || '[]'); } catch { return []; } }
 function writeHistory(l) { try { localStorage.setItem(STORAGE_HISTORY, JSON.stringify(l.slice(0, HISTORY_MAX))); } catch {} }
@@ -773,9 +907,10 @@ function hookEvents() {
     state.timer.selectedIdx = 0;
     const sel = $('meterSelect'); if (sel) sel.value = '0';
     timerSetBtn(); recalc(); saveDraftDebounced();
+    sigPads.an?.clear();
+    sigPads.ag?.clear();
   });
-sigPads.an?.clear();
-sigPads.ag?.clear();
+
   $('btnSave')?.addEventListener('click', () => {
     saveCurrentToHistory();
     alert('Messung im Verlauf gespeichert.');
