@@ -161,11 +161,38 @@
       <button id="btnSave"  class="btn btn--accent" type="button">Speichern</button>
       <button id="btnPdf"   class="btn btn--ghost"  type="button">PDF</button>
     </div>
-    <div class="hint" id="pdfHint">PDF wird heruntergeladen (TTMMJJJJ_Rammpfahl-Protokoll_Nr X.pdf)</div>
   </section>
 
 </main>
+<section class="card">
+  <div class="card__title">Unterschriften</div>
 
+  <div class="sig-grid">
+    <div class="sig-box">
+      <div class="sig-head">
+        <div class="sig-title">AN (Datum; Unterschrift)</div>
+        <input id="sigAnDate" class="field__input sig-date" type="date">
+      </div>
+      <canvas id="sigAnCanvas" class="sig-canvas"></canvas>
+      <div class="sig-actions">
+        <button id="sigAnClear" class="btn btn--ghost" type="button">Löschen</button>
+      </div>
+    </div>
+
+    <div class="sig-box">
+      <div class="sig-head">
+        <div class="sig-title">AG/ÖBA (Datum; Unterschrift)</div>
+        <input id="sigAgDate" class="field__input sig-date" type="date">
+      </div>
+      <canvas id="sigAgCanvas" class="sig-canvas"></canvas>
+      <div class="sig-actions">
+        <button id="sigAgClear" class="btn btn--ghost" type="button">Löschen</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="hint">Mit Finger/Stift unterschreiben. Wird lokal gespeichert und im PDF mitexportiert.</div>
+</section>
 <!-- ═══ BEMESSUNG ═══ -->
 <main id="tab-bemessung" class="pane" role="tabpanel" hidden>
   <section class="card">
