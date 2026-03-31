@@ -321,10 +321,10 @@ function buildBemTable() {
   tbody.innerHTML = '';
 
   const rows = [
-    { secm:'gedrückt', label:'sehr locker', qs:0,                         klammer:false },
-    { secm:'5–10',     label:'locker',       qs:bodenart==='bindig'?20:40, klammer:true  },
-    { secm:'10–20',    label:'mitteldicht',  qs:bodenart==='bindig'?40:80, klammer:bodenart==='bindig' },
-    { secm:'20–30',    label:'dicht',        qs:bodenart==='bindig'?70:120,klammer:false },
+    { secm:'gedrückt', label:'sehr locker', qs:0,                          klammer:false },
+    { secm:'5–10',     label:'locker',       qs:bodenart==='bindig'?20:40,  klammer:true  },
+    { secm:'10–20',    label:'mitteldicht',  qs:bodenart==='bindig'?40:80,  klammer:bodenart==='bindig' },
+    { secm:'20–30',    label:'dicht',        qs:bodenart==='bindig'?70:120, klammer:false },
     { secm:'> 30',     label:'sehr dicht',   qs:bodenart==='bindig'?100:150,klammer:false },
   ];
 
@@ -446,6 +446,7 @@ async function exportPdf(optSnap = null) {
   const pdf = await PDFDocument.create();
   pdf.registerFontkit(window.fontkit);
 
+  // Fonts
   let fReg, fBold;
   try {
     const ab = await fetch('arial.ttf').then(r => { if (!r.ok) throw new Error(r.status); return r.arrayBuffer(); });
@@ -460,6 +461,7 @@ async function exportPdf(optSnap = null) {
     fBold = await pdf.embedFont(StandardFonts.HelveticaBold);
   }
 
+  // Logo
   let logoImg = null;
   try {
     const lb = await fetch('logo.png').then(r => r.arrayBuffer());
@@ -475,8 +477,10 @@ async function exportPdf(optSnap = null) {
   const W  = 595.28 - 2*margin;
   const H  = 841.89 - 2*margin;
 
+  // Äußerer Rahmen
   page.drawRectangle({ x:x0, y:y0, width:W, height:H, borderColor:K, borderWidth:1.5 });
 
+  // Kopfzeile
   const hdrH = mm(14);
   page.drawRectangle({ x:x0, y:y0+H-hdrH, width:W, height:hdrH, color:rgb(.88,.88,.88), borderColor:K, borderWidth:1 });
 
@@ -489,6 +493,7 @@ async function exportPdf(optSnap = null) {
 
   const hLine = (y, t=1) => page.drawLine({ start:{x:x0,y}, end:{x:x0+W,y}, thickness:t, color:K });
 
+  // Meta-Block
   const rowH = mm(8);
   let cy = y0 + H - hdrH - rowH;
   const midX = x0 + W * 0.5;
@@ -504,13 +509,14 @@ async function exportPdf(optSnap = null) {
   }
 
   hLine(y0+H-hdrH);
-  metaRow('Datum:',       dateDE(meta.datum),             'Kostenstelle:', meta.kostenstelle || '');
-  metaRow('Projekt:',     meta.projekt || '',              'Auftraggeber:', meta.auftraggeber || '');
-  metaRow('Trägergerät:', meta.traeger || 'SK 270',        'Pfahlnummer:',  meta.pfahlNr || '');
-  metaRow('Hyd-hammer:',  meta.hammer  || 'Wimmer WH26',  'Pfahl-Bemessungslast [kN] :', meta.ed ? '  '+fmtComma(Number(meta.ed),2) : '');
+  metaRow('Datum:',       dateDE(meta.datum),            'Kostenstelle:', meta.kostenstelle || '');
+  metaRow('Projekt:',     meta.projekt || '',             'Auftraggeber:', meta.auftraggeber || '');
+  metaRow('Trägergerät:', meta.traeger || 'SK 270',       'Pfahlnummer:',  meta.pfahlNr || '');
+  metaRow('Hyd-hammer:',  meta.hammer  || 'Wimmer WH26', 'Pfahl-Bemessungslast [kN] :', meta.ed ? '  '+fmtComma(Number(meta.ed),2) : '');
   const pfahlStr = String(meta.pfahltyp||'').replace(/x/gi,'×') + ` Ø${Number(meta.schuh||220)}mm`;
-  metaRow('Pfahltyp:',    pfahlStr,                        'Bodenart:',     meta.bodenart || '');
+  metaRow('Pfahltyp:',    pfahlStr,                       'Bodenart:',     meta.bodenart || '');
 
+  // ─── Tabelle + Diagramm ──────────────────────
   const tableTop    = cy + rowH;
   const tableBottom = y0 + mm(28);
   const tH          = tableTop - tableBottom;
@@ -518,9 +524,11 @@ async function exportPdf(optSnap = null) {
   const rightW = W - leftW;
   const thRow  = mm(7);
 
+  // Header-Hintergründe
   page.drawRectangle({ x:x0,       y:tableTop-thRow, width:leftW,  height:thRow, color:rgb(.93,.93,.93), borderColor:K, borderWidth:1 });
   page.drawRectangle({ x:x0+leftW, y:tableTop-thRow, width:rightW, height:thRow, color:rgb(.93,.93,.93), borderColor:K, borderWidth:1 });
 
+  // Spaltenbreiten (c1 breiter für Eindringtiefe + Σ Pfahlwiderstand)
   const c1  = leftW * 0.30;
   const c2  = leftW * 0.16;
   const c3  = leftW * 0.16;
@@ -533,11 +541,13 @@ async function exportPdf(optSnap = null) {
   const chartX0 = x0 + leftW;
   page.drawLine({ start:{x:chartX0,y:tableBottom}, end:{x:chartX0,y:tableTop}, thickness:1, color:K });
 
+  // Header-Texte
   page.drawText('Eindringtiefe [m]', { x:x0+mm(1.5),  y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
   page.drawText('Zeit [sec]',        { x:xC1+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
   page.drawText('Rd [kN]',           { x:xC2+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
   page.drawText('Anmerkung',         { x:xC3+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
 
+  // Diagramm-Skala (auto)
   const times = (snap.times||[]).slice(0,25).map(v => Number(v||0));
   const maxT  = Math.max(0,...times);
   const scale = niceTicks(maxT, 4);
@@ -551,23 +561,39 @@ async function exportPdf(optSnap = null) {
   const chartTop    = tableTop - thRow;
   const chartBottom = tableBottom;
 
+  // X-Achse oben
   page.drawLine({ start:{x:innerL,y:chartTop}, end:{x:innerR,y:chartTop}, thickness:0.9, color:K });
 
+  // X-Achse: Ticks + Labels oben
   scale.ticks.forEach(t => {
     const gx = cX(t);
     page.drawText(String(t), { x:gx-mm(2), y:chartTop+mm(2), size:8, font:fReg, color:K });
     page.drawLine({ start:{x:gx,y:chartTop}, end:{x:gx,y:chartTop-mm(2)}, thickness:0.8, color:K });
   });
 
-  page.drawText('Zeit [sec]', { x:innerR-mm(18), y:chartBottom+mm(1.5), size:8.5, font:fBold, color:K });
-
-  page.drawLine({ start:{x:innerL,y:chartBottom}, end:{x:innerL,y:chartTop}, thickness:0.9, color:K });
-
-  page.drawText('Eindringtiefe', {
-    x: chartX0 + mm(3.5), y: chartBottom + mm(28),
-    size: 8.5, font: fBold, color: K, rotate: degrees(90)
+  // X-Achsenbeschriftung links von 0
+  page.drawText('Zeit [sec]', {
+    x: innerL - mm(15),
+    y: chartTop + mm(5),
+    size: 8.5,
+    font: fBold,
+    color: K
   });
 
+  // Y-Achse
+  page.drawLine({ start:{x:innerL,y:chartBottom}, end:{x:innerL,y:chartTop}, thickness:0.9, color:K });
+
+  // Y-Achsenbeschriftung: "Eindringtiefe" vertikal, unten an der Achse (bei 24-25m)
+  page.drawText('Eindringtiefe', {
+    x: innerL - mm(5.0),
+    y: chartBottom + mm(1.5),
+    size: 8.5,
+    font: fBold,
+    color: K,
+    rotate: degrees(90)
+  });
+
+  // Datenzeilen
   const dataRowH = (tH - thRow - mm(12)) / (25 + 2);
   let yRowTop    = tableTop - thRow;
 
@@ -579,6 +605,7 @@ async function exportPdf(optSnap = null) {
   for (let i = 0; i < 25; i++) {
     const yBot = yRowTop - dataRowH;
 
+    // Zeilenlinie nur über Tabellenbereich (nicht durch Diagramm)
     page.drawLine({ start:{x:x0,y:yBot}, end:{x:x0+leftW,y:yBot}, thickness:1, color:K });
 
     const t    = Number(snap.times?.[i] || 0);
@@ -587,15 +614,27 @@ async function exportPdf(optSnap = null) {
     const rd = rdFromSec(t, bodenart, schuhMm, includeK);
     sumRd += rd;
 
+    // Tabelle links
     page.drawText(depthLabel(i), { x:x0+mm(1.5),  y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
     if (t > 0) page.drawText(String(t), { x:xC1+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
     page.drawText(fmtComma(rd,2),        { x:xC2+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
     if (note) drawFit(page, note, xC3+mm(1.5), yBot+mm(1.5), (x0+leftW-mm(2))-(xC3+mm(1.5)), fReg, 9, K);
 
-    const yMid = yBot + dataRowH / 2;
+    // Y-Achse: Tick + Label rechtsbündig direkt an Achse
+    const yMid     = yBot + dataRowH / 2;
+    const yLblText = depthLabel(i);
+    const yLblSize = 7.5;
+    const yLblW    = pdfTextWidth(fReg, yLblSize, yLblText);
     page.drawLine({ start:{x:innerL,y:yMid}, end:{x:innerL+mm(1.5),y:yMid}, thickness:0.7, color:K });
-    page.drawText(depthLabel(i), { x:chartX0+mm(2), y:yMid-mm(1.2), size:7.5, font:fReg, color:K });
+    page.drawText(yLblText, {
+      x: innerL - mm(1.2) - yLblW,
+      y: yMid - mm(1.2),
+      size: yLblSize,
+      font: fReg,
+      color: K
+    });
 
+    // Balken: gelb + schwarzer Rahmen
     if (t > 0) {
       const barH = dataRowH * 0.60;
       const barY = yBot + (dataRowH - barH) / 2;
@@ -609,16 +648,22 @@ async function exportPdf(optSnap = null) {
     yRowTop = yBot;
   }
 
+  // Footer Zeile 1: Gesamtzeit
   const fy1 = yRowTop - dataRowH;
   page.drawLine({ start:{x:x0,y:fy1}, end:{x:x0+leftW,y:fy1}, thickness:1, color:K });
   page.drawText('Gesamtzeit:',   { x:x0+mm(1.5),  y:fy1+mm(1.5), size:10, font:fBold, color:K });
   page.drawText(String(sumTime), { x:xC1+mm(1.5), y:fy1+mm(1.5), size:10, font:fReg,  color:K });
   if (meta.ed) page.drawText(fmtComma(Number(meta.ed),2), { x:xC3+mm(1.5), y:fy1+mm(1.5), size:10, font:fReg, color:K });
 
+  // Footer Zeile 2: Σ Pfahlwiderstand Rd
   const fy2 = fy1 - dataRowH;
   page.drawLine({ start:{x:x0,y:fy2}, end:{x:x0+leftW,y:fy2}, thickness:1, color:K });
+
+  // Label in breiterer c1-Spalte
   drawFit(page, 'Σ Pfahlwiderstand Rd', x0+mm(1.5), fy2+mm(1.5), c1-mm(3), fBold, 9.5, K);
-  page.drawText(fmtComma(sumRd,2), { x:xC1+mm(1.5), y:fy2+mm(1.5), size:10, font:fReg, color:K });
+
+  // ΣRd-Wert in der Rd-Spalte (xC2), nicht unter Gesamtzeit (xC1)
+  page.drawText(fmtComma(sumRd,2), { x:xC2+mm(1.5), y:fy2+mm(1.5), size:10, font:fReg, color:K });
 
   const ok = sumRd >= Number(meta.ed || 0);
   page.drawText(ok ? 'Rd ≥ Ed' : 'Rd < Ed', {
@@ -626,13 +671,14 @@ async function exportPdf(optSnap = null) {
     color: ok ? rgb(0,0.5,0) : rgb(0.8,0,0)
   });
 
+  // Signaturbereich
   const signTop = y0 + mm(22);
   page.drawLine({ start:{x:x0,y:signTop}, end:{x:x0+W,y:signTop}, thickness:1, color:K });
   page.drawLine({ start:{x:x0+W/2,y:y0}, end:{x:x0+W/2,y:signTop}, thickness:1, color:K });
   page.drawText('AN ( Datum; Unterschrift)',     { x:x0+mm(2),     y:y0+mm(6), size:10, font:fReg, color:K });
   page.drawText('AG/ ÖBA (Datum; Unterschrift)', { x:x0+W/2+mm(2), y:y0+mm(6), size:10, font:fReg, color:K });
 
-  // ─── PDF in neuem Tab öffnen (kein direkter Download) ─────
+  // ─── PDF in neuem Tab öffnen ──────────────────
   const bytes = await pdf.save();
   const blob  = new Blob([bytes], { type: 'application/pdf' });
   const url   = URL.createObjectURL(blob);
@@ -640,7 +686,7 @@ async function exportPdf(optSnap = null) {
   const w = window.open(url, '_blank');
 
   if (!w) {
-    // Popup blockiert → Fallback Download
+    alert('Bitte Popups zulassen, um das PDF anzuzeigen!');
     const d    = meta.datum ? new Date(meta.datum) : new Date();
     const name = `${dateTag(d)}_Rammpfahl-Protokoll_Nr ${meta.pfahlNr || 'X'}.pdf`;
     const a    = document.createElement('a');
