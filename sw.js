@@ -1,4 +1,4 @@
-const CACHE = 'htb-rammpfahl-v265';
+const CACHE = 'htb-rammpfahl-v270';
 const ASSETS = [
   './',
   './index.html',
