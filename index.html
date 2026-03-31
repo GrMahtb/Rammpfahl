@@ -8,13 +8,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
   <meta name="apple-mobile-web-app-title" content="HTB Rammpfahl"/>
   <title>HTB Rammpfahl-Protokoll</title>
-
+  
   <link rel="manifest" href="manifest.json"/>
   <link rel="icon" type="image/svg+xml" href="icon.svg"/>
   <link rel="icon" type="image/png" sizes="192x192" href="launchericon-192x192.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="launchericon-192x192.png"/>
+  
   <link rel="stylesheet" href="styles.css"/>
-
   <script defer src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
 </head>
@@ -40,65 +40,75 @@
 <!-- ═══ PROTOKOLL ═══ -->
 <main id="tab-protokoll" class="pane is-active" role="tabpanel">
 
-  <section class="card">
-    <div class="card__title">Stammdaten</div>
-    <div class="form-grid">
-      <label class="field">
-        <span class="field__label">Datum</span>
-        <input id="inp-datum" class="field__input" type="date"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Pfahlnummer</span>
-        <input id="inp-pfahl-nr" class="field__input" type="number" min="1" value="1"/>
-      </label>
-      <label class="field field--full">
-        <span class="field__label">Projekt</span>
-        <input id="inp-projekt" class="field__input" type="text"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Kostenstelle</span>
-        <input id="inp-kostenstelle" class="field__input" type="text"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Auftraggeber</span>
-        <input id="inp-auftraggeber" class="field__input" type="text"/>
-      </label>
+  <!-- Akkordeon: Stammdaten -->
+  <details class="card card--collapsible" open>
+    <summary class="card__title">Stammdaten</summary>
+    <div class="card__body">
+      <div class="form-grid">
+        <label class="field">
+          <span class="field__label">Datum</span>
+          <input id="inp-datum" class="field__input" type="date"/>
+        </label>
+        <label class="field">
+          <span class="field__label">Pfahlnummer</span>
+          <input id="inp-pfahl-nr" class="field__input" type="number" min="1" value="1"/>
+        </label>
+        <label class="field field--full">
+          <span class="field__label">Projekt</span>
+          <input id="inp-projekt" class="field__input" type="text"/>
+        </label>
+        <label class="field">
+          <span class="field__label">Kostenstelle</span>
+          <input id="inp-kostenstelle" class="field__input" type="text"/>
+        </label>
+        <label class="field">
+          <span class="field__label">Auftraggeber</span>
+          <input id="inp-auftraggeber" class="field__input" type="text"/>
+        </label>
+      </div>
     </div>
-  </section>
+  </details>
 
-  <section class="card">
-    <div class="card__title">Gerät &amp; Pfahl</div>
-    <div class="form-grid">
-      <label class="field">
-        <span class="field__label">Trägergerät</span>
-        <input id="inp-traeger" class="field__input" type="text" value="SK 270"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Hyd-hammer</span>
-        <input id="inp-hammer" class="field__input" type="text" value="Wimmer WH26"/>
-      </label>
-      <label class="field field--full">
-        <span class="field__label">Pfahltyp</span>
-        <input id="inp-pfahltyp" class="field__input" type="text" value="118×7,5mm"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Rammschuh-Ø [mm]</span>
-        <input id="inp-schuh" class="field__input" type="number" value="220"/>
-      </label>
-      <label class="field">
-        <span class="field__label">Bodenart</span>
-        <select id="inp-bodenart" class="field__select">
-          <option value="bindig" selected>bindig</option>
-          <option value="nichtbindig">nicht bindig</option>
-        </select>
-      </label>
-      <label class="field">
-        <span class="field__label">Pfahl-Bemessungslast Ed [kN]</span>
-        <input id="inp-ed" class="field__input" type="number" step="0.01" value="350.60"/>
-      </label>
+  <!-- Akkordeon: Gerät & Pfahl -->
+  <details class="card card--collapsible" open>
+    <summary class="card__title">Gerät &amp; Pfahl</summary>
+    <div class="card__body">
+      <div class="form-grid">
+        <label class="field">
+          <span class="field__label">Trägergerät</span>
+          <input id="inp-traeger" class="field__input" type="text" value="SK 270"/>
+        </label>
+        <label class="field">
+          <span class="field__label">Hyd-hammer</span>
+          <input id="inp-hammer" class="field__input" type="text" value="Wimmer WH26"/>
+        </label>
+        
+        <!-- Pfahltyp als generiertes Dropdown -->
+        <label class="field field--full">
+          <span class="field__label">Pfahltyp</span>
+          <select id="inp-pfahltyp" class="field__select"></select>
+        </label>
+        
+        <label class="field">
+          <span class="field__label">Rammschuh-Ø [mm]</span>
+          <input id="inp-schuh" class="field__input" type="number" value="220"/>
+        </label>
+        <label class="field">
+          <span class="field__label">Bodenart</span>
+          <select id="inp-bodenart" class="field__select">
+            <option value="bindig" selected>bindig</option>
+            <option value="nichtbindig">nicht bindig</option>
+          </select>
+        </label>
+        <label class="field">
+          <span class="field__label">Pfahl-Bemessungslast Ed [kN]</span>
+          <input id="inp-ed" class="field__input" type="number" step="0.01" value="350.60"/>
+        </label>
+      </div>
     </div>
-  </section>
+  </details>
 
+  <!-- Zeitmessung (Kein Akkordeon, immer offen weil wichtig) -->
   <section class="card">
     <div class="card__title">Zeitmessung</div>
     <div class="form-grid">
@@ -117,12 +127,16 @@
           <option value="1">Ja</option>
         </select>
       </label>
+      
       <div class="field">
         <span class="field__label">&nbsp;</span>
-        <button id="btnTimeToggle" class="btn btn--accent" type="button">▶ Start</button>
+        <div class="btn-stack">
+          <button id="btnStartNext" class="btn btn--accent" type="button">▶ Start</button>
+          <button id="btnStop" class="btn btn--stop" type="button" disabled>■ Stop</button>
+        </div>
       </div>
     </div>
-    <div class="hint">Start → Messung läuft (rot) → nochmal drücken → Zeit wird eingetragen, nächster Meter.</div>
+    <div class="hint">Start → läuft → nochmal Start für nächsten Meter. Erst Stop beendet die Messung.</div>
   </section>
 
   <section class="card">
@@ -166,35 +180,36 @@
     <div class="hint" id="pdfHint">PDF öffnet in neuem Tab (Popup ggf. erlauben).</div>
   </section>
 
-  <section class="card">
-    <div class="card__title">Unterschriften</div>
-
-    <div class="sig-grid">
-      <div class="sig-box">
-        <div class="sig-head">
-          <div class="sig-title">AN (Datum; Unterschrift)</div>
-          <input id="sigAnDate" class="field__input sig-date" type="date">
+  <!-- Akkordeon: Unterschriften (Standardmäßig eingeklappt) -->
+  <details class="card card--collapsible">
+    <summary class="card__title">Unterschriften</summary>
+    <div class="card__body">
+      <div class="sig-grid">
+        <div class="sig-box">
+          <div class="sig-head">
+            <div class="sig-title">AN (Datum; Unterschrift)</div>
+            <input id="sigAnDate" class="field__input sig-date" type="date">
+          </div>
+          <canvas id="sigAnCanvas" class="sig-canvas"></canvas>
+          <div class="sig-actions">
+            <button id="sigAnClear" class="btn btn--ghost" type="button">Löschen</button>
+          </div>
         </div>
-        <canvas id="sigAnCanvas" class="sig-canvas"></canvas>
-        <div class="sig-actions">
-          <button id="sigAnClear" class="btn btn--ghost" type="button">Löschen</button>
+
+        <div class="sig-box">
+          <div class="sig-head">
+            <div class="sig-title">AG/ÖBA (Datum; Unterschrift)</div>
+            <input id="sigAgDate" class="field__input sig-date" type="date">
+          </div>
+          <canvas id="sigAgCanvas" class="sig-canvas"></canvas>
+          <div class="sig-actions">
+            <button id="sigAgClear" class="btn btn--ghost" type="button">Löschen</button>
+          </div>
         </div>
       </div>
-
-      <div class="sig-box">
-        <div class="sig-head">
-          <div class="sig-title">AG/ÖBA (Datum; Unterschrift)</div>
-          <input id="sigAgDate" class="field__input sig-date" type="date">
-        </div>
-        <canvas id="sigAgCanvas" class="sig-canvas"></canvas>
-        <div class="sig-actions">
-          <button id="sigAgClear" class="btn btn--ghost" type="button">Löschen</button>
-        </div>
-      </div>
+      <div class="hint">Mit Finger/Stift unterschreiben. Wird lokal gespeichert und im PDF mitexportiert.</div>
     </div>
-
-    <div class="hint">Mit Finger/Stift unterschreiben. Wird lokal gespeichert und im PDF mitexportiert.</div>
-  </section>
+  </details>
 
 </main>
 
