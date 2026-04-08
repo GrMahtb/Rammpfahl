@@ -1,5 +1,5 @@
 'use strict';
-console.log('HTB Rammpfahl app.js v10 loaded');
+console.log('HTB Rammpfahl app.js v11 loaded');
 
 const DEPTHS          = Array.from({ length: 25 }, (_, i) => i);
 const STORAGE_DRAFT   = 'htb-rammpfahl-draft-v9';
@@ -70,8 +70,10 @@ let timeInputs = [];
 let noteInputs = [];
 let sigPads = { an:null, ag:null };
 
+// Klammerwerte werden IMMER berücksichtigt — keine Option mehr
+const INCLUDE_KLAMMER = true;
+
 const state = {
-  includeKlammer: true,
   timer: { running:false, startMs:0, raf:null, selectedIdx:0 }
 };
 
@@ -114,11 +116,11 @@ function isKlammerClass(bodenart, cls){
   return (cls === 's5_10' || cls === 's10_20');
 }
 
-function rdFromSec(sec, bodenart, schuhMm, includeKlammer){
+function rdFromSec(sec, bodenart, schuhMm){
   const cls = secClass(sec);
   if (!cls) return 0;
   const base = (RD_PER_M_220[bodenart] || RD_PER_M_220.bindig)[cls] || 0;
-  if (!includeKlammer && isKlammerClass(bodenart, cls)) return 0;
+  // Klammerwerte immer berücksichtigt → kein Skip
   return base * ((Number(schuhMm) || 220) / 220);
 }
 
@@ -168,7 +170,6 @@ function collectFormState(){
       bodenart:     $('inp-bodenart')?.value || 'bindig',
       ed:           $('inp-ed')?.value || ''
     },
-    includeKlammer: state.includeKlammer ? 1 : 0,
     meterIdx: state.timer.selectedIdx || 0,
     times: DEPTHS.map((_,i)=> timeInputs[i]?.value || ''),
     notes: DEPTHS.map((_,i)=> noteInputs[i]?.value || ''),
@@ -193,9 +194,6 @@ function applyFormState(s){
   $('inp-schuh').value        = m.schuh || '220';
   $('inp-bodenart').value     = m.bodenart || 'bindig';
   $('inp-ed').value           = m.ed || '350.60';
-
-  state.includeKlammer = (s?.includeKlammer === undefined) ? true : !!Number(s.includeKlammer);
-  $('optIncludeKlammer').value = state.includeKlammer ? '1' : '0';
 
   (s.times || []).slice(0,25).forEach((v,i)=> { if (timeInputs[i]) timeInputs[i].value = v; });
   (s.notes || []).slice(0,25).forEach((v,i)=> { if (noteInputs[i]) noteInputs[i].value = v; });
@@ -233,12 +231,11 @@ function sumsFromSnapshot(snap){
   const bodenart = snap.meta?.bodenart || 'bindig';
   const schuh    = Number(snap.meta?.schuh || 220);
   const ed       = Number(snap.meta?.ed || 0);
-  const includeK = (snap?.includeKlammer === undefined) ? true : !!Number(snap.includeKlammer);
   let sumTime=0, sumRd=0;
   (snap.times||[]).slice(0,25).forEach(tv=>{
     const t = Number(tv||0);
     if (t>0) sumTime += t;
-    sumRd += rdFromSec(t, bodenart, schuh, includeK);
+    sumRd += rdFromSec(t, bodenart, schuh);
   });
   return { sumTime, sumRd, ed, ok: sumRd >= ed };
 }
@@ -313,7 +310,7 @@ function renderHistoryList(){
 }
 
 /* ───────────────────────── UI build ───────────────────────── */
-function buildPfahltypDropdown() {
+function buildPfahltypDropdown(){
   const sel = $('inp-pfahltyp');
   if (!sel) return;
   sel.innerHTML = '';
@@ -404,7 +401,7 @@ function buildBemTable(){
       <td class="${r.klammer?'klammer':''}">${r.label}</td>
       <td class="${r.klammer?'klammer':''}">${r.klammer ? '('+r.qs+')' : r.qs}</td>
       <td class="rd-val">${fmtComma(rd,3)}</td>
-      <td class="${r.klammer?'klammer':''}">${r.klammer?'Klammerwert':''}</td>
+      <td class="${r.klammer?'klammer':''}">${r.klammer?'Klammerwert – wird berücksichtigt':''}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -438,13 +435,12 @@ function recalc(){
   const bodenart = $('inp-bodenart')?.value || 'bindig';
   const schuh = Number($('inp-schuh')?.value || 220);
   const ed = Number($('inp-ed')?.value || 0);
-  const includeK = state.includeKlammer;
   let sumTime=0, sumRd=0;
 
   DEPTHS.forEach((_,i) => {
     const t = Number(timeInputs[i]?.value || 0);
     if (t>0) sumTime += t;
-    const rd = rdFromSec(t, bodenart, schuh, includeK);
+    const rd = rdFromSec(t, bodenart, schuh);
     sumRd += rd;
     const el = $(`rd-${i}`);
     if (el) el.textContent = fmtComma(rd,2);
@@ -743,10 +739,10 @@ async function exportPdf(optSnap=null){
   const chartX0 = x0 + leftW;
   page.drawLine({ start:{x:chartX0,y:tableBottom}, end:{x:chartX0,y:tableTop}, thickness:1, color:K });
 
-  page.drawText('Eindringtiefe [m]', { x:x0+mm(1.5),    y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
-  page.drawText('Zeit [sec]',        { x:xC1+mm(1.5),   y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
-  page.drawText('Rd [kN]',           { x:xC2+mm(1.5),   y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
-  page.drawText('Anmerkung',         { x:xC3+mm(1.5),   y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
+  page.drawText('Eindringtiefe [m]', { x:x0+mm(1.5),  y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
+  page.drawText('Zeit [sec]',        { x:xC1+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
+  page.drawText('Rd [kN]',           { x:xC2+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
+  page.drawText('Anmerkung',         { x:xC3+mm(1.5), y:tableTop-thRow+mm(2.2), size:9, font:fBold, color:K });
 
   const times = (snap.times||[]).slice(0,25).map(v=>Number(v||0));
   const maxT  = Math.max(0, ...times);
@@ -783,7 +779,6 @@ async function exportPdf(optSnap=null){
 
   const bodenart = meta.bodenart || 'bindig';
   const schuhMm  = Number(meta.schuh || 220);
-  const includeK = (snap?.includeKlammer === undefined) ? true : !!Number(snap.includeKlammer);
 
   let sumTime = 0;
   let sumRd   = 0;
@@ -796,7 +791,7 @@ async function exportPdf(optSnap=null){
     const note = String(snap.notes?.[i] || '');
     if (t>0) sumTime += t;
 
-    const rd = rdFromSec(t, bodenart, schuhMm, includeK);
+    const rd = rdFromSec(t, bodenart, schuhMm);
     sumRd += rd;
 
     page.drawText(depthLabel(i), { x:x0+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
@@ -841,7 +836,6 @@ async function exportPdf(optSnap=null){
 
   const an = snap.sign?.an || {};
   const ag = snap.sign?.ag || {};
-
   const boxPad  = mm(3);
   const leftX   = x0 + boxPad;
   const leftW2  = (W/2) - 2*boxPad;
@@ -901,11 +895,6 @@ function hookEvents(){
     $(id)?.addEventListener('change', () => { recalc(); saveDraftDebounced(); });
   });
 
-  $('optIncludeKlammer')?.addEventListener('change', () => {
-    state.includeKlammer = $('optIncludeKlammer').value === '1';
-    recalc(); saveDraftDebounced();
-  });
-
   $('bem-bodenart')?.addEventListener('change', buildBemTable);
   $('bem-schuh')?.addEventListener('input',    buildBemTable);
 
@@ -925,11 +914,6 @@ function hookEvents(){
     const sel = $('meterSelect'); if (sel) sel.value = '0';
     sigPads.an?.clear();
     sigPads.ag?.clear();
-
-    // Klammerwerte Default zurück auf Ja
-    state.includeKlammer = true;
-    if ($('optIncludeKlammer')) $('optIncludeKlammer').value = '1';
-
     timerSetBtnUI();
     recalc();
     saveDraftDebounced();
@@ -969,7 +953,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator)
     navigator.serviceWorker.register('sw.js').catch(() => {});
 
-  // ── PWA Installationsbutton — MUSS innerhalb DOMContentLoaded sein! (Android-Fix)
+  // ── PWA Install — muss innerhalb DOMContentLoaded bleiben (Android-Fix)
   let _installPrompt = null;
 
   window.addEventListener('beforeinstallprompt', (e) => {
