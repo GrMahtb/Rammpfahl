@@ -383,25 +383,26 @@ function buildBemTable(){
   const schuhMm  = Number($('bem-schuh')?.value || 220);
   const tbody = $('bemBody');
   if (!tbody) return;
+
   tbody.innerHTML = '';
 
   const rows = [
     { secm:'gedrückt', label:'sehr locker',  qs:0,                            klammer:false },
-    { secm:'5–10',     label:'locker',       qs:bodenart==='bindig'?  20: 40,  klammer:true  },
-    { secm:'10–20',    label:'mitteldicht',  qs:bodenart==='bindig'?  40: 80,  klammer:(bodenart==='bindig') },
-    { secm:'20–30',    label:'dicht',        qs:bodenart==='bindig'?  70:120,  klammer:false },
-    { secm:'> 30',     label:'sehr dicht',   qs:bodenart==='bindig'? 100:150,  klammer:false },
+    { secm:'5–10',     label:'locker',       qs:bodenart==='bindig' ? 20 : 40,  klammer:true  },
+    { secm:'10–20',    label:'mitteldicht',  qs:bodenart==='bindig' ? 40 : 80,  klammer:(bodenart==='bindig') },
+    { secm:'20–30',    label:'dicht',        qs:bodenart==='bindig' ? 70 : 120, klammer:false },
+    { secm:'> 30',     label:'sehr dicht',   qs:bodenart==='bindig' ? 100 : 150, klammer:false },
   ];
 
   rows.forEach(r => {
-    const rd = r.qs * Math.PI * (schuhMm/1000);
+    const rd = r.qs * Math.PI * (schuhMm / 1000);
     const tr = document.createElement('tr');
     tr.innerHTML = `
-      <td class="${r.klammer?'klammer':''}">${r.secm}</td>
-      <td class="${r.klammer?'klammer':''}">${r.label}</td>
-      <td class="${r.klammer?'klammer':''}">${r.klammer ? '('+r.qs+')' : r.qs}</td>
+      <td>${r.secm}</td>
+      <td>${r.label}</td>
+      <td>${r.qs}</td>
       <td class="rd-val">${fmtComma(rd,3)}</td>
-      <td class="${r.klammer?'klammer':''}">${r.klammer?'Klammerwert – wird berücksichtigt':''}</td>
+      <td>${r.klammer ? 'Klammerwert – wird berücksichtigt' : ''}</td>
     `;
     tbody.appendChild(tr);
   });
