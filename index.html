@@ -38,7 +38,7 @@
 
   <!-- ═══ PROTOKOLL ═══ -->
   <main id="tab-protokoll" class="pane is-active" role="tabpanel">
-    <!-- Akkordeon: Stammdaten -->
+
     <details class="card card--collapsible" open>
       <summary class="card__title">Stammdaten</summary>
       <div class="card__body">
@@ -67,7 +67,6 @@
       </div>
     </details>
 
-    <!-- Akkordeon: Gerät & Pfahl -->
     <details class="card card--collapsible" open>
       <summary class="card__title">Gerät &amp; Pfahl</summary>
       <div class="card__body">
@@ -80,12 +79,10 @@
             <span class="field__label">Hyd-hammer</span>
             <input id="inp-hammer" class="field__input" type="text" value="Wimmer WH26"/>
           </label>
-
           <label class="field field--full">
             <span class="field__label">Pfahltyp</span>
             <select id="inp-pfahltyp" class="field__select"></select>
           </label>
-
           <label class="field">
             <span class="field__label">Rammschuh-Ø [mm]</span>
             <input id="inp-schuh" class="field__input" type="number" value="220"/>
@@ -105,7 +102,6 @@
       </div>
     </details>
 
-    <!-- Zeitmessung -->
     <section class="card">
       <div class="card__title">Zeitmessung</div>
       <div class="form-grid">
@@ -113,17 +109,15 @@
           <span class="field__label">Aktueller Meter</span>
           <select id="meterSelect" class="field__select"></select>
         </label>
-
         <label class="field">
           <span class="field__label">Live-Zeit</span>
           <input id="timeLive" class="field__input" type="text" value="0 s" readonly/>
         </label>
-
-       <label class="field">
+        <div class="field">
           <span class="field__label">Klammerwerte</span>
-          <input class="field__input" type="text" value="werden immer berücksichtigt" readonly />
-        </label>
-
+          <input class="field__input" type="text" value="✓ werden immer berücksichtigt" readonly
+            style="color:var(--ok);font-weight:900;cursor:default;"/>
+        </div>
         <div class="field">
           <span class="field__label">&nbsp;</span>
           <div class="btn-stack">
@@ -176,7 +170,6 @@
       <div class="hint" id="pdfHint">PDF öffnet in neuem Tab (Popup ggf. erlauben).</div>
     </section>
 
-    <!-- Akkordeon: Unterschriften -->
     <details class="card card--collapsible">
       <summary class="card__title">Unterschriften</summary>
       <div class="card__body">
@@ -191,7 +184,6 @@
               <button id="sigAnClear" class="btn btn--ghost" type="button">Löschen</button>
             </div>
           </div>
-
           <div class="sig-box">
             <div class="sig-head">
               <div class="sig-title">AG/ÖBA (Datum; Unterschrift)</div>
@@ -203,7 +195,6 @@
             </div>
           </div>
         </div>
-
         <div class="hint">Mit Finger/Stift unterschreiben. Wird lokal gespeichert und im PDF mitexportiert.</div>
       </div>
     </details>
@@ -227,7 +218,6 @@
         </label>
       </div>
     </section>
-
     <section class="card">
       <div class="card__title">Bemessungstabelle (Sicherheitsbeiwert 2,0 enthalten)</div>
       <div class="table-wrap">
@@ -254,7 +244,6 @@
         </table>
       </div>
     </section>
-
     <section class="card">
       <div class="card__title">Verfügbare SSAB-Produkte</div>
       <div class="table-wrap">
