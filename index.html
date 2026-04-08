@@ -115,7 +115,9 @@
         </label>
         <div class="field">
           <span class="field__label">Klammerwerte</span>
-          <input class="field__input" type="text" value="✓ werden immer berücksichtigt" readonly
+          <input class="field__input" type="text"
+            value="✓ werden immer berücksichtigt"
+            readonly
             style="color:var(--ok);font-weight:900;cursor:default;"/>
         </div>
         <div class="field">
@@ -219,11 +221,17 @@
       </div>
     </section>
     <section class="card">
-      <div class="card__title">Bemessungstabelle (Sicherheitsbeiwert 2,0 enthalten)</div>
+      <div class="card__title">Bemessungstabelle (Sicherheitsbeiwert 2,0 enthalten · alle Mantelreibungswerte aktiv)</div>
       <div class="table-wrap">
         <table class="bem-table">
           <thead>
-            <tr><th>sec/m</th><th>Lagerungsdichte</th><th>qs [kN/m²]</th><th>Rd/m [kN]</th><th>Hinweis</th></tr>
+            <tr>
+              <th>sec/m</th>
+              <th>Lagerungsdichte</th>
+              <th>Mantelreibung qs [kN/m²]</th>
+              <th>Rd/m [kN]</th>
+              <th>Hinweis</th>
+            </tr>
           </thead>
           <tbody id="bemBody"></tbody>
         </table>
