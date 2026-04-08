@@ -1,11 +1,12 @@
 'use strict';
-console.log('HTB Rammpfahl app.js v11 loaded');
+console.log('HTB Rammpfahl app.js v12 loaded');
 
 const DEPTHS          = Array.from({ length: 25 }, (_, i) => i);
-const STORAGE_DRAFT   = 'htb-rammpfahl-draft-v9';
+const STORAGE_DRAFT   = 'htb-rammpfahl-draft-v10';  // v10 → alter Draft mit includeKlammer:0 wird ignoriert
 const STORAGE_HISTORY = 'htb-rammpfahl-history-v9';
 const HISTORY_MAX     = 30;
 
+// Rd/m-Werte für Ø220mm — Klammerwerte IMMER berücksichtigt
 const RD_PER_M_220 = {
   nichtbindig: {
     gedrueckt: 0.0,
@@ -70,9 +71,7 @@ let timeInputs = [];
 let noteInputs = [];
 let sigPads = { an:null, ag:null };
 
-// Klammerwerte werden IMMER berücksichtigt — keine Option mehr
-const INCLUDE_KLAMMER = true;
-
+// Kein includeKlammer mehr im State — Klammerwerte werden IMMER berücksichtigt
 const state = {
   timer: { running:false, startMs:0, raf:null, selectedIdx:0 }
 };
@@ -110,17 +109,11 @@ function secClass(sec){
   return 'gt30';
 }
 
-function isKlammerClass(bodenart, cls){
-  if (!cls) return false;
-  if (bodenart === 'nichtbindig') return cls === 's5_10';
-  return (cls === 's5_10' || cls === 's10_20');
-}
-
+// Klammerwerte werden IMMER berücksichtigt — kein includeKlammer Parameter mehr
 function rdFromSec(sec, bodenart, schuhMm){
   const cls = secClass(sec);
   if (!cls) return 0;
   const base = (RD_PER_M_220[bodenart] || RD_PER_M_220.bindig)[cls] || 0;
-  // Klammerwerte immer berücksichtigt → kein Skip
   return base * ((Number(schuhMm) || 220) / 220);
 }
 
@@ -156,7 +149,7 @@ function initTabs(){
 /* ───────────────────────── Draft ───────────────────────── */
 function collectFormState(){
   return {
-    v: 9,
+    v: 10,
     meta: {
       datum:        $('inp-datum')?.value || '',
       projekt:      $('inp-projekt')?.value || '',
@@ -194,6 +187,8 @@ function applyFormState(s){
   $('inp-schuh').value        = m.schuh || '220';
   $('inp-bodenart').value     = m.bodenart || 'bindig';
   $('inp-ed').value           = m.ed || '350.60';
+
+  // kein includeKlammer mehr — wird ignoriert falls im alten Draft vorhanden
 
   (s.times || []).slice(0,25).forEach((v,i)=> { if (timeInputs[i]) timeInputs[i].value = v; });
   (s.notes || []).slice(0,25).forEach((v,i)=> { if (noteInputs[i]) noteInputs[i].value = v; });
@@ -235,7 +230,7 @@ function sumsFromSnapshot(snap){
   (snap.times||[]).slice(0,25).forEach(tv=>{
     const t = Number(tv||0);
     if (t>0) sumTime += t;
-    sumRd += rdFromSec(t, bodenart, schuh);
+    sumRd += rdFromSec(t, bodenart, schuh); // kein includeKlammer
   });
   return { sumTime, sumRd, ed, ok: sumRd >= ed };
 }
@@ -383,14 +378,13 @@ function buildBemTable(){
   const schuhMm  = Number($('bem-schuh')?.value || 220);
   const tbody = $('bemBody');
   if (!tbody) return;
-
   tbody.innerHTML = '';
 
   const rows = [
-    { secm:'gedrückt', label:'sehr locker',  qs:0,                            klammer:false },
-    { secm:'5–10',     label:'locker',       qs:bodenart==='bindig' ? 20 : 40,  klammer:true  },
-    { secm:'10–20',    label:'mitteldicht',  qs:bodenart==='bindig' ? 40 : 80,  klammer:(bodenart==='bindig') },
-    { secm:'20–30',    label:'dicht',        qs:bodenart==='bindig' ? 70 : 120, klammer:false },
+    { secm:'gedrückt', label:'sehr locker',  qs:0,                             klammer:false },
+    { secm:'5–10',     label:'locker',       qs:bodenart==='bindig' ?  20 : 40, klammer:true  },
+    { secm:'10–20',    label:'mitteldicht',  qs:bodenart==='bindig' ?  40 : 80, klammer:bodenart==='bindig' },
+    { secm:'20–30',    label:'dicht',        qs:bodenart==='bindig' ?  70 : 120, klammer:false },
     { secm:'> 30',     label:'sehr dicht',   qs:bodenart==='bindig' ? 100 : 150, klammer:false },
   ];
 
@@ -400,9 +394,9 @@ function buildBemTable(){
     tr.innerHTML = `
       <td>${r.secm}</td>
       <td>${r.label}</td>
-      <td>${r.qs}</td>
+      <td>${r.qs}${r.klammer ? ' <span style="color:var(--ok);font-size:.85em">✓</span>' : ''}</td>
       <td class="rd-val">${fmtComma(rd,3)}</td>
-      <td>${r.klammer ? 'Klammerwert – wird berücksichtigt' : ''}</td>
+      <td style="color:var(--ok);font-size:.85em">${r.klammer ? 'Klammerwert – berücksichtigt' : ''}</td>
     `;
     tbody.appendChild(tr);
   });
@@ -441,7 +435,7 @@ function recalc(){
   DEPTHS.forEach((_,i) => {
     const t = Number(timeInputs[i]?.value || 0);
     if (t>0) sumTime += t;
-    const rd = rdFromSec(t, bodenart, schuh);
+    const rd = rdFromSec(t, bodenart, schuh); // kein includeKlammer
     sumRd += rd;
     const el = $(`rd-${i}`);
     if (el) el.textContent = fmtComma(rd,2);
@@ -780,6 +774,7 @@ async function exportPdf(optSnap=null){
 
   const bodenart = meta.bodenart || 'bindig';
   const schuhMm  = Number(meta.schuh || 220);
+  // Klammerwerte immer berücksichtigt — kein includeK Parameter
 
   let sumTime = 0;
   let sumRd   = 0;
@@ -792,7 +787,7 @@ async function exportPdf(optSnap=null){
     const note = String(snap.notes?.[i] || '');
     if (t>0) sumTime += t;
 
-    const rd = rdFromSec(t, bodenart, schuhMm);
+    const rd = rdFromSec(t, bodenart, schuhMm); // kein includeKlammer
     sumRd += rd;
 
     page.drawText(depthLabel(i), { x:x0+mm(1.5), y:yBot+mm(1.5), size:9.5, font:fReg, color:K });
@@ -896,6 +891,8 @@ function hookEvents(){
     $(id)?.addEventListener('change', () => { recalc(); saveDraftDebounced(); });
   });
 
+  // kein optIncludeKlammer Event-Handler mehr
+
   $('bem-bodenart')?.addEventListener('change', buildBemTable);
   $('bem-schuh')?.addEventListener('input',    buildBemTable);
 
@@ -954,7 +951,7 @@ window.addEventListener('DOMContentLoaded', () => {
   if ('serviceWorker' in navigator)
     navigator.serviceWorker.register('sw.js').catch(() => {});
 
-  // ── PWA Install — muss innerhalb DOMContentLoaded bleiben (Android-Fix)
+  // PWA Install — innerhalb DOMContentLoaded (Android-Fix)
   let _installPrompt = null;
 
   window.addEventListener('beforeinstallprompt', (e) => {
