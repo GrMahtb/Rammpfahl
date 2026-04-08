@@ -8,287 +8,286 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black"/>
   <meta name="apple-mobile-web-app-title" content="HTB Rammpfahl"/>
   <title>HTB Rammpfahl-Protokoll</title>
-  
+
   <link rel="manifest" href="manifest.json"/>
   <link rel="icon" type="image/svg+xml" href="icon.svg"/>
   <link rel="icon" type="image/png" sizes="192x192" href="launchericon-192x192.png"/>
   <link rel="apple-touch-icon" sizes="180x180" href="launchericon-192x192.png"/>
-  
   <link rel="stylesheet" href="styles.css"/>
+
   <script defer src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@pdf-lib/fontkit@1.1.1/dist/fontkit.umd.min.js"></script>
 </head>
 <body>
-
-<header class="brand">
-  <div class="brand__bar">
-    <div class="brand__logo"><img src="logo.png" alt="HTB"/></div>
-    <div class="brand__info">
-      <div class="brand__company">HTB Baugesellschaft m.b.H.</div>
-      <div class="brand__subtitle">Rammpfahl-Protokoll · Bemessung · Varianten · Verlauf</div>
-    </div>
-  </div>
-</header>
-
-<nav class="tabs" role="tablist" aria-label="Menü">
-  <button class="tab is-active" data-tab="protokoll" type="button">Protokoll</button>
-  <button class="tab" data-tab="bemessung" type="button">Bemessung</button>
-  <button class="tab" data-tab="varianten" type="button">Varianten</button>
-  <button class="tab" data-tab="verlauf" type="button">Verlauf</button>
-</nav>
-
-<!-- ═══ PROTOKOLL ═══ -->
-<main id="tab-protokoll" class="pane is-active" role="tabpanel">
-
-  <!-- Akkordeon: Stammdaten -->
-  <details class="card card--collapsible" open>
-    <summary class="card__title">Stammdaten</summary>
-    <div class="card__body">
-      <div class="form-grid">
-        <label class="field">
-          <span class="field__label">Datum</span>
-          <input id="inp-datum" class="field__input" type="date"/>
-        </label>
-        <label class="field">
-          <span class="field__label">Pfahlnummer</span>
-          <input id="inp-pfahl-nr" class="field__input" type="number" min="1" value="1"/>
-        </label>
-        <label class="field field--full">
-          <span class="field__label">Projekt</span>
-          <input id="inp-projekt" class="field__input" type="text"/>
-        </label>
-        <label class="field">
-          <span class="field__label">Kostenstelle</span>
-          <input id="inp-kostenstelle" class="field__input" type="text"/>
-        </label>
-        <label class="field">
-          <span class="field__label">Auftraggeber</span>
-          <input id="inp-auftraggeber" class="field__input" type="text"/>
-        </label>
+  <header class="brand">
+    <div class="brand__bar">
+      <div class="brand__logo"><img src="logo.png" alt="HTB"/></div>
+      <div class="brand__info">
+        <div class="brand__company">HTB Baugesellschaft m.b.H.</div>
+        <div class="brand__subtitle">Rammpfahl-Protokoll · Bemessung · Varianten · Verlauf</div>
       </div>
     </div>
-  </details>
+  </header>
 
-  <!-- Akkordeon: Gerät & Pfahl -->
-  <details class="card card--collapsible" open>
-    <summary class="card__title">Gerät &amp; Pfahl</summary>
-    <div class="card__body">
+  <nav class="tabs" role="tablist" aria-label="Menü">
+    <button class="tab is-active" data-tab="protokoll" type="button">Protokoll</button>
+    <button class="tab" data-tab="bemessung" type="button">Bemessung</button>
+    <button class="tab" data-tab="varianten" type="button">Varianten</button>
+    <button class="tab" data-tab="verlauf" type="button">Verlauf</button>
+  </nav>
+
+  <!-- ═══ PROTOKOLL ═══ -->
+  <main id="tab-protokoll" class="pane is-active" role="tabpanel">
+    <!-- Akkordeon: Stammdaten -->
+    <details class="card card--collapsible" open>
+      <summary class="card__title">Stammdaten</summary>
+      <div class="card__body">
+        <div class="form-grid">
+          <label class="field">
+            <span class="field__label">Datum</span>
+            <input id="inp-datum" class="field__input" type="date"/>
+          </label>
+          <label class="field">
+            <span class="field__label">Pfahlnummer</span>
+            <input id="inp-pfahl-nr" class="field__input" type="number" min="1" value="1"/>
+          </label>
+          <label class="field field--full">
+            <span class="field__label">Projekt</span>
+            <input id="inp-projekt" class="field__input" type="text"/>
+          </label>
+          <label class="field">
+            <span class="field__label">Kostenstelle</span>
+            <input id="inp-kostenstelle" class="field__input" type="text"/>
+          </label>
+          <label class="field">
+            <span class="field__label">Auftraggeber</span>
+            <input id="inp-auftraggeber" class="field__input" type="text"/>
+          </label>
+        </div>
+      </div>
+    </details>
+
+    <!-- Akkordeon: Gerät & Pfahl -->
+    <details class="card card--collapsible" open>
+      <summary class="card__title">Gerät &amp; Pfahl</summary>
+      <div class="card__body">
+        <div class="form-grid">
+          <label class="field">
+            <span class="field__label">Trägergerät</span>
+            <input id="inp-traeger" class="field__input" type="text" value="SK 270"/>
+          </label>
+          <label class="field">
+            <span class="field__label">Hyd-hammer</span>
+            <input id="inp-hammer" class="field__input" type="text" value="Wimmer WH26"/>
+          </label>
+
+          <label class="field field--full">
+            <span class="field__label">Pfahltyp</span>
+            <select id="inp-pfahltyp" class="field__select"></select>
+          </label>
+
+          <label class="field">
+            <span class="field__label">Rammschuh-Ø [mm]</span>
+            <input id="inp-schuh" class="field__input" type="number" value="220"/>
+          </label>
+          <label class="field">
+            <span class="field__label">Bodenart</span>
+            <select id="inp-bodenart" class="field__select">
+              <option value="bindig" selected>bindig</option>
+              <option value="nichtbindig">nicht bindig</option>
+            </select>
+          </label>
+          <label class="field">
+            <span class="field__label">Pfahl-Bemessungslast Ed [kN]</span>
+            <input id="inp-ed" class="field__input" type="number" step="0.01" value="350.60"/>
+          </label>
+        </div>
+      </div>
+    </details>
+
+    <!-- Zeitmessung -->
+    <section class="card">
+      <div class="card__title">Zeitmessung</div>
       <div class="form-grid">
         <label class="field">
-          <span class="field__label">Trägergerät</span>
-          <input id="inp-traeger" class="field__input" type="text" value="SK 270"/>
+          <span class="field__label">Aktueller Meter</span>
+          <select id="meterSelect" class="field__select"></select>
         </label>
+
         <label class="field">
-          <span class="field__label">Hyd-hammer</span>
-          <input id="inp-hammer" class="field__input" type="text" value="Wimmer WH26"/>
+          <span class="field__label">Live-Zeit</span>
+          <input id="timeLive" class="field__input" type="text" value="0 s" readonly/>
         </label>
-        
-        <!-- Pfahltyp als generiertes Dropdown -->
-        <label class="field field--full">
-          <span class="field__label">Pfahltyp</span>
-          <select id="inp-pfahltyp" class="field__select"></select>
-        </label>
-        
+
         <label class="field">
-          <span class="field__label">Rammschuh-Ø [mm]</span>
-          <input id="inp-schuh" class="field__input" type="number" value="220"/>
+          <span class="field__label">Klammerwerte anrechnen?</span>
+          <select id="optIncludeKlammer" class="field__select">
+            <option value="1" selected>Ja (Default)</option>
+            <option value="0">Nein</option>
+          </select>
         </label>
+
+        <div class="field">
+          <span class="field__label">&nbsp;</span>
+          <div class="btn-stack">
+            <button id="btnStartNext" class="btn btn--accent" type="button">▶ Start</button>
+            <button id="btnStop" class="btn btn--stop" type="button" disabled>■ Stop</button>
+          </div>
+        </div>
+      </div>
+      <div class="hint">Start → läuft → nochmal Start für nächsten Meter. Erst Stop beendet die Messung.</div>
+    </section>
+
+    <section class="card">
+      <div class="card__title">Rammpfahl-Protokoll</div>
+      <div class="table-wrap">
+        <table class="proto-table">
+          <thead>
+            <tr>
+              <th>Eindringtiefe [m]</th>
+              <th>Zeit [sec]</th>
+              <th>Rd [kN]</th>
+              <th>Anmerkung</th>
+            </tr>
+          </thead>
+          <tbody id="protoBody"></tbody>
+          <tfoot>
+            <tr class="sum-row">
+              <td><strong>Gesamtzeit:</strong></td>
+              <td id="sumTime">0</td>
+              <td></td>
+              <td></td>
+            </tr>
+            <tr class="sum-row">
+              <td><strong>Σ Pfahlwiderstand Rd</strong></td>
+              <td id="sumRd">0,00</td>
+              <td id="sumResult" class="sum-result">–</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="card__title">Aktionen</div>
+      <div class="buttons">
+        <button id="btnReset" class="btn btn--ghost" type="button">Reset</button>
+        <button id="btnSave"  class="btn btn--accent" type="button">Speichern</button>
+        <button id="btnPdf"   class="btn btn--ghost"  type="button">PDF</button>
+      </div>
+      <div class="hint" id="pdfHint">PDF öffnet in neuem Tab (Popup ggf. erlauben).</div>
+    </section>
+
+    <!-- Akkordeon: Unterschriften -->
+    <details class="card card--collapsible">
+      <summary class="card__title">Unterschriften</summary>
+      <div class="card__body">
+        <div class="sig-grid">
+          <div class="sig-box">
+            <div class="sig-head">
+              <div class="sig-title">AN (Datum; Unterschrift)</div>
+              <input id="sigAnDate" class="field__input sig-date" type="date">
+            </div>
+            <canvas id="sigAnCanvas" class="sig-canvas"></canvas>
+            <div class="sig-actions">
+              <button id="sigAnClear" class="btn btn--ghost" type="button">Löschen</button>
+            </div>
+          </div>
+
+          <div class="sig-box">
+            <div class="sig-head">
+              <div class="sig-title">AG/ÖBA (Datum; Unterschrift)</div>
+              <input id="sigAgDate" class="field__input sig-date" type="date">
+            </div>
+            <canvas id="sigAgCanvas" class="sig-canvas"></canvas>
+            <div class="sig-actions">
+              <button id="sigAgClear" class="btn btn--ghost" type="button">Löschen</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="hint">Mit Finger/Stift unterschreiben. Wird lokal gespeichert und im PDF mitexportiert.</div>
+      </div>
+    </details>
+  </main>
+
+  <!-- ═══ BEMESSUNG ═══ -->
+  <main id="tab-bemessung" class="pane" role="tabpanel" hidden>
+    <section class="card">
+      <div class="card__title">Parameter</div>
+      <div class="form-grid">
         <label class="field">
           <span class="field__label">Bodenart</span>
-          <select id="inp-bodenart" class="field__select">
+          <select id="bem-bodenart" class="field__select">
             <option value="bindig" selected>bindig</option>
             <option value="nichtbindig">nicht bindig</option>
           </select>
         </label>
         <label class="field">
-          <span class="field__label">Pfahl-Bemessungslast Ed [kN]</span>
-          <input id="inp-ed" class="field__input" type="number" step="0.01" value="350.60"/>
+          <span class="field__label">Rammschuh-Ø [mm]</span>
+          <input id="bem-schuh" class="field__input" type="number" value="220"/>
         </label>
       </div>
-    </div>
-  </details>
+    </section>
 
-  <!-- Zeitmessung (Kein Akkordeon, immer offen weil wichtig) -->
-  <section class="card">
-    <div class="card__title">Zeitmessung</div>
-    <div class="form-grid">
-      <label class="field">
-        <span class="field__label">Aktueller Meter</span>
-        <select id="meterSelect" class="field__select"></select>
-      </label>
-      <label class="field">
-        <span class="field__label">Live-Zeit</span>
-        <input id="timeLive" class="field__input" type="text" value="0 s" readonly/>
-      </label>
-      <label class="field">
-        <span class="field__label">Klammerwerte anrechnen?</span>
-        <select id="optIncludeKlammer" class="field__select">
-          <option value="0" selected>Nein (Empfehlung)</option>
-          <option value="1">Ja</option>
-        </select>
-      </label>
-      
-      <div class="field">
-        <span class="field__label">&nbsp;</span>
-        <div class="btn-stack">
-          <button id="btnStartNext" class="btn btn--accent" type="button">▶ Start</button>
-          <button id="btnStop" class="btn btn--stop" type="button" disabled>■ Stop</button>
-        </div>
+    <section class="card">
+      <div class="card__title">Bemessungstabelle (Sicherheitsbeiwert 2,0 enthalten)</div>
+      <div class="table-wrap">
+        <table class="bem-table">
+          <thead>
+            <tr><th>sec/m</th><th>Lagerungsdichte</th><th>qs [kN/m²]</th><th>Rd/m [kN]</th><th>Hinweis</th></tr>
+          </thead>
+          <tbody id="bemBody"></tbody>
+        </table>
       </div>
-    </div>
-    <div class="hint">Start → läuft → nochmal Start für nächsten Meter. Erst Stop beendet die Messung.</div>
-  </section>
+    </section>
+  </main>
 
-  <section class="card">
-    <div class="card__title">Rammpfahl-Protokoll</div>
-    <div class="table-wrap">
-      <table class="proto-table">
-        <thead>
-          <tr>
-            <th>Eindringtiefe [m]</th>
-            <th>Zeit [sec]</th>
-            <th>Rd [kN]</th>
-            <th>Anmerkung</th>
-          </tr>
-        </thead>
-        <tbody id="protoBody"></tbody>
-        <tfoot>
-          <tr class="sum-row">
-            <td><strong>Gesamtzeit:</strong></td>
-            <td id="sumTime">0</td>
-            <td></td>
-            <td></td>
-          </tr>
-          <tr class="sum-row">
-            <td><strong>Σ Pfahlwiderstand Rd</strong></td>
-            <td id="sumRd">0,00</td>
-            <td id="sumResult" class="sum-result">–</td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card__title">Aktionen</div>
-    <div class="buttons">
-      <button id="btnReset" class="btn btn--ghost" type="button">Reset</button>
-      <button id="btnSave"  class="btn btn--accent" type="button">Speichern</button>
-      <button id="btnPdf"   class="btn btn--ghost"  type="button">PDF</button>
-    </div>
-    <div class="hint" id="pdfHint">PDF öffnet in neuem Tab (Popup ggf. erlauben).</div>
-  </section>
-
-  <!-- Akkordeon: Unterschriften (Standardmäßig eingeklappt) -->
-  <details class="card card--collapsible">
-    <summary class="card__title">Unterschriften</summary>
-    <div class="card__body">
-      <div class="sig-grid">
-        <div class="sig-box">
-          <div class="sig-head">
-            <div class="sig-title">AN (Datum; Unterschrift)</div>
-            <input id="sigAnDate" class="field__input sig-date" type="date">
-          </div>
-          <canvas id="sigAnCanvas" class="sig-canvas"></canvas>
-          <div class="sig-actions">
-            <button id="sigAnClear" class="btn btn--ghost" type="button">Löschen</button>
-          </div>
-        </div>
-
-        <div class="sig-box">
-          <div class="sig-head">
-            <div class="sig-title">AG/ÖBA (Datum; Unterschrift)</div>
-            <input id="sigAgDate" class="field__input sig-date" type="date">
-          </div>
-          <canvas id="sigAgCanvas" class="sig-canvas"></canvas>
-          <div class="sig-actions">
-            <button id="sigAgClear" class="btn btn--ghost" type="button">Löschen</button>
-          </div>
-        </div>
+  <!-- ═══ VARIANTEN ═══ -->
+  <main id="tab-varianten" class="pane" role="tabpanel" hidden>
+    <section class="card">
+      <div class="card__title">Verfügbare TRM-Produkte</div>
+      <div class="table-wrap">
+        <table class="bem-table">
+          <thead>
+            <tr><th>Typ</th><th>Ø außen</th><th>Ø innen</th><th>WS</th><th>kg/m</th><th>€/m</th></tr>
+          </thead>
+          <tbody id="trmList"></tbody>
+        </table>
       </div>
-      <div class="hint">Mit Finger/Stift unterschreiben. Wird lokal gespeichert und im PDF mitexportiert.</div>
-    </div>
-  </details>
+    </section>
 
-</main>
+    <section class="card">
+      <div class="card__title">Verfügbare SSAB-Produkte</div>
+      <div class="table-wrap">
+        <table class="bem-table">
+          <thead>
+            <tr><th>Typ</th><th>Güte</th><th>Ø außen</th><th>WS</th><th>kg/m</th><th>€/m</th></tr>
+          </thead>
+          <tbody id="ssabList"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
 
-<!-- ═══ BEMESSUNG ═══ -->
-<main id="tab-bemessung" class="pane" role="tabpanel" hidden>
-  <section class="card">
-    <div class="card__title">Parameter</div>
-    <div class="form-grid">
-      <label class="field">
-        <span class="field__label">Bodenart</span>
-        <select id="bem-bodenart" class="field__select">
-          <option value="bindig" selected>bindig</option>
-          <option value="nichtbindig">nicht bindig</option>
-        </select>
-      </label>
-      <label class="field">
-        <span class="field__label">Rammschuh-Ø [mm]</span>
-        <input id="bem-schuh" class="field__input" type="number" value="220"/>
-      </label>
-    </div>
-  </section>
+  <!-- ═══ VERLAUF ═══ -->
+  <main id="tab-verlauf" class="pane" role="tabpanel" hidden>
+    <section class="card">
+      <div class="card__title">Letzte Messungen (lokal gespeichert)</div>
+      <div id="historyList" class="historyList"></div>
+      <div class="hint">Neueste oben · offline verfügbar · max. 30 Einträge</div>
+    </section>
+  </main>
 
-  <section class="card">
-    <div class="card__title">Bemessungstabelle (Sicherheitsbeiwert 2,0 enthalten)</div>
-    <div class="table-wrap">
-      <table class="bem-table">
-        <thead>
-          <tr><th>sec/m</th><th>Lagerungsdichte</th><th>qs [kN/m²]</th><th>Rd/m [kN]</th><th>Hinweis</th></tr>
-        </thead>
-        <tbody id="bemBody"></tbody>
-      </table>
-    </div>
-  </section>
-</main>
+  <footer class="footer">
+    &copy; <b>HTB Baugesellschaft m.b.H.</b> – Rammpfahl-Protokoll PWA
+    <br/>
+    <button id="btnInstall" class="btn btn--install" type="button" hidden>
+      ⬇ App installieren
+    </button>
+  </footer>
 
-<!-- ═══ VARIANTEN ═══ -->
-<main id="tab-varianten" class="pane" role="tabpanel" hidden>
-  <section class="card">
-    <div class="card__title">Verfügbare TRM-Produkte</div>
-    <div class="table-wrap">
-      <table class="bem-table">
-        <thead>
-          <tr><th>Typ</th><th>Ø außen</th><th>Ø innen</th><th>WS</th><th>kg/m</th><th>€/m</th></tr>
-        </thead>
-        <tbody id="trmList"></tbody>
-      </table>
-    </div>
-  </section>
-
-  <section class="card">
-    <div class="card__title">Verfügbare SSAB-Produkte</div>
-    <div class="table-wrap">
-      <table class="bem-table">
-        <thead>
-          <tr><th>Typ</th><th>Güte</th><th>Ø außen</th><th>WS</th><th>kg/m</th><th>€/m</th></tr>
-        </thead>
-        <tbody id="ssabList"></tbody>
-      </table>
-    </div>
-  </section>
-</main>
-
-<!-- ═══ VERLAUF ═══ -->
-<main id="tab-verlauf" class="pane" role="tabpanel" hidden>
-  <section class="card">
-    <div class="card__title">Letzte Messungen (lokal gespeichert)</div>
-    <div id="historyList" class="historyList"></div>
-    <div class="hint">Neueste oben · offline verfügbar · max. 30 Einträge</div>
-  </section>
-</main>
-
-
-<script src="app.js"></script>
+  <script src="app.js"></script>
 </body>
 </html>
-<footer class="footer">
-  &copy; <b>HTB Baugesellschaft m.b.H.</b> – Rammpfahl-Protokoll PWA
-  <br/>
-  <button id="btnInstall" class="btn btn--install" type="button" hidden>
-    ⬇ App installieren
-  </button>
-</footer>
