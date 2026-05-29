@@ -59,11 +59,12 @@
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Menü">
-    <button class="tab is-active" data-tab="protokoll" type="button">Protokoll</button>
-    <button class="tab" data-tab="bemessung" type="button">Bemessung</button>
-    <button class="tab" data-tab="varianten" type="button">Varianten</button>
-    <button class="tab" data-tab="verlauf" type="button">Verlauf</button>
-  </nav>
+<button class="tab is-active" data-tab="protokoll" type="button">Protokoll</button>
+<button class="tab" data-tab="bemessung" type="button">Bemessung</button>
+<button class="tab" data-tab="varianten" type="button">Varianten</button>
+<button class="tab" data-tab="verlauf" type="button">Verlauf</button>
+<button class="tab" data-tab="einstellungen" type="button" title="Einstellungen" style="flex:0 0 auto;padding:10px 14px;">⚙</button>
+</nav>
 
   <!-- ═══ PROTOKOLL ═══ -->
   <main id="tab-protokoll" class="pane is-active" role="tabpanel">
@@ -151,10 +152,11 @@
         </div>
         <div class="field">
           <span class="field__label">&nbsp;</span>
-          <div class="btn-stack">
-            <button id="btnStartNext" class="btn btn--accent" type="button">▶ Start</button>
-            <button id="btnStop" class="btn btn--stop" type="button" disabled>■ Stop</button>
-          </div>
+         <div class="btn-stack">
+<button id="btnStartNext" class="btn btn--accent" type="button">▶ Start</button>
+<button id="btnPause"     class="btn btn--pause"  type="button" disabled>⏸ Pause</button>
+<button id="btnStop"      class="btn btn--stop"   type="button" disabled>■ Stop</button>
+</div>
         </div>
       </div>
       <div class="hint">Start → läuft → nochmal Start für nächsten Meter. Erst Stop beendet die Messung.</div>
@@ -305,7 +307,27 @@
       <div class="hint">Neueste oben · offline verfügbar · max. 30 Einträge</div>
     </section>
   </main>
-
+<!-- ═══ EINSTELLUNGEN ═══ -->
+<main id="tab-einstellungen" class="pane" role="tabpanel" hidden>
+  <section class="card">
+    <div class="card__title">Darstellung</div>
+    <div class="form-grid">
+      <div class="field field--full">
+        <span class="field__label">Erscheinungsbild</span>
+        <div class="theme-toggle">
+          <label class="theme-option">
+            <input type="radio" name="rp-theme" id="rp-theme-dark" value="dark" checked>
+            <span>🌙 Dunkel</span>
+          </label>
+          <label class="theme-option">
+            <input type="radio" name="rp-theme" id="rp-theme-light" value="light">
+            <span>☀️ Hell</span>
+          </label>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
   <footer class="footer">
     &copy; <b>HTB Baugesellschaft m.b.H.</b> – Rammpfahl-Protokoll PWA
     <br/>
