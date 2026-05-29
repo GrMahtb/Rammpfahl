@@ -73,7 +73,7 @@ let sigPads = { an:null, ag:null };
 
 // Kein includeKlammer mehr im State — Klammerwerte werden IMMER berücksichtigt
 const state = {
-timer: { running:false, paused:false, startMs:0, accumulatedMs:0, raf:null, selectedIdx:0 }
+  timer: { running:false, paused:false, startMs:0, accumulatedMs:0, raf:null, selectedIdx:0 }
 };
 
 /* ───────────────────────── helpers ───────────────────────── */
@@ -453,26 +453,26 @@ function recalc(){
 
 /* ───────────────────────── timer ───────────────────────── */
 function timerSetBtnUI(){
-const btnStart = $('btnStartNext');
-const btnPause = $('btnPause');
-const btnStop  = $('btnStop');
-if (!btnStart || !btnStop) return;
-if (state.timer.running) {
-  btnStart.textContent = '▶ Nächster Meter';
-  btnStart.disabled    = false;
-  if (btnPause){ btnPause.disabled = false; btnPause.textContent = '⏸ Pause'; }
-  btnStop.disabled = false;
-} else if (state.timer.paused) {
-  btnStart.textContent = '▶ Weiter';
-  btnStart.disabled    = false;
-  if (btnPause){ btnPause.disabled = true;  btnPause.textContent = '⏸ Pause'; }
-  btnStop.disabled = false;
-} else {
-  btnStart.textContent = '▶ Start';
-  btnStart.disabled    = false;
-  if (btnPause){ btnPause.disabled = true;  btnPause.textContent = '⏸ Pause'; }
-  btnStop.disabled = true;
-}
+  const btnStart = $('btnStartNext');
+  const btnPause = $('btnPause');
+  const btnStop  = $('btnStop');
+  if (!btnStart || !btnStop) return;
+  if (state.timer.running) {
+    btnStart.textContent = '▶ Nächster Meter';
+    btnStart.disabled    = false;
+    if (btnPause){ btnPause.disabled = false; btnPause.textContent = '⏸ Pause'; }
+    btnStop.disabled = false;
+  } else if (state.timer.paused) {
+    btnStart.textContent = '▶ Weiter';
+    btnStart.disabled    = false;
+    if (btnPause){ btnPause.disabled = true; btnPause.textContent = '⏸ Pause'; }
+    btnStop.disabled = false;
+  } else {
+    btnStart.textContent = '▶ Start';
+    btnStart.disabled    = false;
+    if (btnPause){ btnPause.disabled = true; btnPause.textContent = '⏸ Pause'; }
+    btnStop.disabled = true;
+  }
 }
 
 function timerTick(){
