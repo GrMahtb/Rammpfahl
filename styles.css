@@ -336,14 +336,38 @@ body.theme-light {
   --card:   #ffffff;
   --card2:  #e4e5e9;
   --border: #c8c8d0;
-  --accent: #f0c800;
+  --accent: #e6bc00;
   --text:   #111111;
   --muted:  #55555e;
   --ok:     #007a3d;
   --err:    #cc2020;
 }
-body.theme-light .brand__bar        { background: #1a1a1a; }
+
+/* Header: gleich hell wie Hintergrund, Schrift schwarz */
+body.theme-light .brand__bar {
+  background: #f0f1f4;
+  border-bottom: 1px solid #c8c8d0;
+}
+body.theme-light .brand__company  { color: #111111; }
+body.theme-light .brand__subtitle { color: #55555e; }
+
+/* Alle Überschriften / Card-Titel schwarz */
+body.theme-light .card__title        { color: #111111; }
+body.theme-light .card__title::before { background: #111111; }
+
+/* Tab-Leiste */
+body.theme-light .tab          { color: #111111; }
+body.theme-light .tab.is-active { background: #111111; color: #f0f1f4; }
+
+/* Inputs */
 body.theme-light .field__input,
 body.theme-light .field__select     { background: #fff; color: #111; border-color: var(--border); }
 body.theme-light .proto-table input { background: #fff; color: #111; border-color: var(--border); }
 body.theme-light .historyItem       { background: #fff; }
+
+/* Ghost-Button */
+body.theme-light .btn--ghost {
+  background: #e0e1e5;
+  border-color: #c8c8d0;
+  color: #111111;
+}
