@@ -549,14 +549,23 @@ timerSetBtnUI();
 const STORAGE_THEME = 'htb-rammpfahl-theme';
 
 function applyTheme(theme){
-const t = theme === 'light' ? 'light' : 'dark';
-document.body.classList.toggle('theme-light', t === 'light');
-document.body.classList.toggle('theme-dark',  t === 'dark');
-try { localStorage.setItem(STORAGE_THEME, t); } catch {}
-const rdark  = $('rp-theme-dark');
-const rlight = $('rp-theme-light');
-if (rdark)  rdark.checked  = t === 'dark';
-if (rlight) rlight.checked = t === 'light';
+  const t = theme === 'light' ? 'light' : 'dark';
+  document.body.classList.toggle('theme-light', t === 'light');
+  document.body.classList.toggle('theme-dark',  t === 'dark');
+  try { localStorage.setItem(STORAGE_THEME, t); } catch {}
+
+  const rdark  = $('rp-theme-dark');
+  const rlight = $('rp-theme-light');
+  if (rdark)  rdark.checked  = t === 'dark';
+  if (rlight) rlight.checked = t === 'light';
+
+  // Logo tauschen
+  const logo = $('rp-logo-img');
+  if (logo) {
+    const darkSrc  = logo.dataset.darkSrc  || 'icon.svg';
+    const lightSrc = logo.dataset.lightSrc || 'logo_hell.svg';
+    logo.src = t === 'light' ? lightSrc : darkSrc;
+  }
 }
 
 function initSettings(){
