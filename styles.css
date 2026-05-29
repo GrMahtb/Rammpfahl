@@ -306,3 +306,44 @@ body {
   color: var(--accent);
   border-color: var(--accent);
 }
+/* ── Pause-Button ── */
+.btn--pause {
+  background: #e07b00;
+  color: #fff;
+}
+.btn--pause:disabled { opacity: 0.35; cursor: not-allowed; }
+
+/* ── Theme-Toggle (Einstellungen) ── */
+.theme-toggle {
+  display: flex;
+  gap: 20px;
+  padding: 6px 0;
+  flex-wrap: wrap;
+}
+.theme-option {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: pointer;
+  font-size: .94em;
+  font-weight: 700;
+}
+.theme-option input { accent-color: var(--accent); width: 18px; height: 18px; cursor: pointer; }
+
+/* ── Light-Theme ── */
+body.theme-light {
+  --bg:     #f0f1f4;
+  --card:   #ffffff;
+  --card2:  #e4e5e9;
+  --border: #c8c8d0;
+  --accent: #f0c800;
+  --text:   #111111;
+  --muted:  #55555e;
+  --ok:     #007a3d;
+  --err:    #cc2020;
+}
+body.theme-light .brand__bar        { background: #1a1a1a; }
+body.theme-light .field__input,
+body.theme-light .field__select     { background: #fff; color: #111; border-color: var(--border); }
+body.theme-light .proto-table input { background: #fff; color: #111; border-color: var(--border); }
+body.theme-light .historyItem       { background: #fff; }
