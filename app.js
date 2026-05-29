@@ -73,7 +73,7 @@ let sigPads = { an:null, ag:null };
 
 // Kein includeKlammer mehr im State — Klammerwerte werden IMMER berücksichtigt
 const state = {
-  timer: { running:false, startMs:0, raf:null, selectedIdx:0 }
+timer: { running:false, paused:false, startMs:0, accumulatedMs:0, raf:null, selectedIdx:0 }
 };
 
 /* ───────────────────────── helpers ───────────────────────── */
@@ -453,59 +453,118 @@ function recalc(){
 
 /* ───────────────────────── timer ───────────────────────── */
 function timerSetBtnUI(){
-  const btnStart = $('btnStartNext');
-  const btnStop  = $('btnStop');
-  if (!btnStart || !btnStop) return;
-  if (state.timer.running) {
-    btnStart.textContent = '▶ Nächster Meter';
-    btnStop.disabled = false;
-  } else {
-    btnStart.textContent = '▶ Start';
-    btnStop.disabled = true;
-  }
+const btnStart = $('btnStartNext');
+const btnPause = $('btnPause');
+const btnStop  = $('btnStop');
+if (!btnStart || !btnStop) return;
+if (state.timer.running) {
+  btnStart.textContent = '▶ Nächster Meter';
+  btnStart.disabled    = false;
+  if (btnPause){ btnPause.disabled = false; btnPause.textContent = '⏸ Pause'; }
+  btnStop.disabled = false;
+} else if (state.timer.paused) {
+  btnStart.textContent = '▶ Weiter';
+  btnStart.disabled    = false;
+  if (btnPause){ btnPause.disabled = true;  btnPause.textContent = '⏸ Pause'; }
+  btnStop.disabled = false;
+} else {
+  btnStart.textContent = '▶ Start';
+  btnStart.disabled    = false;
+  if (btnPause){ btnPause.disabled = true;  btnPause.textContent = '⏸ Pause'; }
+  btnStop.disabled = true;
+}
 }
 
 function timerTick(){
-  if (!state.timer.running) return;
-  const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs)/1000));
-  $('timeLive') && ($('timeLive').value = `${sec} s`);
-  state.timer.raf = requestAnimationFrame(timerTick);
+if (!state.timer.running) return;
+const sec = Math.max(0, Math.round((state.timer.accumulatedMs + Date.now() - state.timer.startMs) / 1000));
+$('timeLive') && ($('timeLive').value = `${sec} s`);
+state.timer.raf = requestAnimationFrame(timerTick);
 }
 
 function timerStartNext(){
-  if (state.timer.running) {
-    const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs)/1000));
-    const idx = state.timer.selectedIdx || 0;
-    if (timeInputs[idx]) timeInputs[idx].value = String(sec);
-    const next = Math.min(DEPTHS.length-1, idx+1);
-    state.timer.selectedIdx = next;
-    $('meterSelect') && ($('meterSelect').value = String(next));
-    state.timer.startMs = Date.now();
-    $('timeLive') && ($('timeLive').value = '0 s');
-    recalc();
-    saveDraftDebounced();
-  } else {
-    state.timer.running = true;
-    state.timer.startMs = Date.now();
-    $('timeLive') && ($('timeLive').value = '0 s');
-    timerTick();
-  }
+if (state.timer.paused) {
+  // Fortsetzen nach Pause
+  state.timer.paused  = false;
+  state.timer.running = true;
+  state.timer.startMs = Date.now();
+  timerTick();
   timerSetBtnUI();
+  return;
+}
+if (state.timer.running) {
+  // Aktuellen Meter speichern, nächsten starten
+  const sec = Math.max(0, Math.round((state.timer.accumulatedMs + Date.now() - state.timer.startMs) / 1000));
+  const idx  = state.timer.selectedIdx || 0;
+  if (timeInputs[idx]) timeInputs[idx].value = String(sec);
+  const next = Math.min(DEPTHS.length - 1, idx + 1);
+  state.timer.selectedIdx = next;
+  $('meterSelect') && ($('meterSelect').value = String(next));
+  state.timer.accumulatedMs = 0;
+  state.timer.startMs = Date.now();
+  $('timeLive') && ($('timeLive').value = '0 s');
+  recalc();
+  saveDraftDebounced();
+} else {
+  // Neu starten
+  state.timer.running       = true;
+  state.timer.paused        = false;
+  state.timer.accumulatedMs = 0;
+  state.timer.startMs       = Date.now();
+  $('timeLive') && ($('timeLive').value = '0 s');
+  timerTick();
+}
+timerSetBtnUI();
+}
+
+function timerPause(){
+if (!state.timer.running) return;
+state.timer.accumulatedMs += Date.now() - state.timer.startMs;
+state.timer.running = false;
+state.timer.paused  = true;
+if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
+state.timer.raf = null;
+const sec = Math.max(0, Math.round(state.timer.accumulatedMs / 1000));
+$('timeLive') && ($('timeLive').value = `${sec} s ⏸`);
+timerSetBtnUI();
 }
 
 function timerStop(){
-  if (!state.timer.running) return;
-  state.timer.running = false;
-  if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
-  state.timer.raf = null;
-  const sec = Math.max(0, Math.round((Date.now() - state.timer.startMs)/1000));
-  const idx = state.timer.selectedIdx || 0;
-  if (timeInputs[idx]) timeInputs[idx].value = String(sec);
-  recalc();
-  saveDraftDebounced();
-  timerSetBtnUI();
+if (!state.timer.running && !state.timer.paused) return;
+const sec = state.timer.paused
+  ? Math.max(0, Math.round(state.timer.accumulatedMs / 1000))
+  : Math.max(0, Math.round((state.timer.accumulatedMs + Date.now() - state.timer.startMs) / 1000));
+state.timer.running = false;
+state.timer.paused  = false;
+if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
+state.timer.raf = null;
+const idx = state.timer.selectedIdx || 0;
+if (timeInputs[idx]) timeInputs[idx].value = String(sec);
+state.timer.accumulatedMs = 0;
+recalc();
+saveDraftDebounced();
+timerSetBtnUI();
+}
+/* ───────────────────────── Theme ───────────────────────── */
+const STORAGE_THEME = 'htb-rammpfahl-theme';
+
+function applyTheme(theme){
+const t = theme === 'light' ? 'light' : 'dark';
+document.body.classList.toggle('theme-light', t === 'light');
+document.body.classList.toggle('theme-dark',  t === 'dark');
+try { localStorage.setItem(STORAGE_THEME, t); } catch {}
+const rdark  = $('rp-theme-dark');
+const rlight = $('rp-theme-light');
+if (rdark)  rdark.checked  = t === 'dark';
+if (rlight) rlight.checked = t === 'light';
 }
 
+function initSettings(){
+const saved = (() => { try { return localStorage.getItem(STORAGE_THEME); } catch { return null; } })();
+applyTheme(saved || 'dark');
+$('rp-theme-dark') ?.addEventListener('change', () => applyTheme('dark'));
+$('rp-theme-light')?.addEventListener('change', () => applyTheme('light'));
+}
 /* ───────────────────────── signature pads ───────────────────────── */
 function resizeCanvasForHiDPI(canvas){
   const dpr = window.devicePixelRatio || 1;
@@ -896,15 +955,18 @@ function hookEvents(){
   $('bem-bodenart')?.addEventListener('change', buildBemTable);
   $('bem-schuh')?.addEventListener('input',    buildBemTable);
 
-  $('btnStartNext')?.addEventListener('click', timerStartNext);
-  $('btnStop')?.addEventListener('click', timerStop);
+$('btnStartNext')?.addEventListener('click', timerStartNext);
+$('btnPause')    ?.addEventListener('click', timerPause);
+$('btnStop')     ?.addEventListener('click', timerStop);
 
-  $('btnReset')?.addEventListener('click', () => {
-    if (state.timer.running) {
-      state.timer.running = false;
-      if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
-      state.timer.raf = null;
-    }
+ $('btnReset')?.addEventListener('click', () => {
+if (state.timer.running || state.timer.paused) {
+state.timer.running       = false;
+state.timer.paused        = false;
+state.timer.accumulatedMs = 0;
+if (state.timer.raf) cancelAnimationFrame(state.timer.raf);
+state.timer.raf = null;
+}
     timeInputs.forEach(i => i.value = '');
     noteInputs.forEach(i => i.value = '');
     const live = $('timeLive'); if (live) live.value = '0 s';
@@ -936,6 +998,7 @@ window.addEventListener('DOMContentLoaded', () => {
     $('inp-datum').value = new Date().toISOString().slice(0,10);
 
   initTabs();
+  initSettings();
   buildProtocolTable();
   buildMeterSelect();
   buildPfahltypDropdown();
