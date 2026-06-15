@@ -560,11 +560,11 @@ function applyTheme(theme){
   if (rlight) rlight.checked = t === 'light';
 
   // Logo tauschen
-  const logo = $('rp-logo-img');
+  const logo = document.getElementById('brandLogo');
   if (logo) {
-    const darkSrc  = logo.dataset.darkSrc  || 'icon.svg';
-    const lightSrc = logo.dataset.lightSrc || 'logo_hell.svg';
-    logo.src = t === 'light' ? lightSrc : darkSrc;
+    logo.src = t === 'light'
+      ? (logo.dataset.lightSrc || 'logo_hell.svg')
+      : (logo.dataset.darkSrc  || 'logo.svg');
   }
 }
 
